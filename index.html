@@ -564,25 +564,39 @@ function App() {
 
   // ── load ──
   useEffect(()=>{
-    const cached = loadFromCache();
-    if(cached.length){
-      setOrders(cached); setLoading(false);
-      if(isApiOk()&&navigator.onLine) syncNow(true);
-      return;
-    }
-    // โหลด seed data แสดงผลก่อน
-    const seed = getSeedData();
-    setOrders(seed); saveToCache(seed); setLoading(false);
-    // push ขึ้น Sheets แบบ async หลัง render แล้ว
+    // ถ้ามี API → ดึงจาก Sheets ก่อนเสมอ (ข้อมูลล่าสุดจริงๆ)
     if(isApiOk()&&navigator.onLine){
       (async()=>{
         try{
           setSyncStatus("syncing");
-          await apiSaveAll(seed);
-          setSyncStatus("online");
-          showToast("✅ sync ข้อมูลขึ้น Google Sheets แล้ว!");
-        }catch(e){ setSyncStatus("offline"); }
+          const data = await apiGet();
+          if(data&&data.length>0){
+            // มีข้อมูลใน Sheets → ใช้เลย
+            setOrders(data); saveToCache(data);
+            setSyncStatus("online");
+          } else {
+            // Sheets ว่าง → push seed data ขึ้นครั้งแรก
+            const seed = getSeedData();
+            setOrders(seed); saveToCache(seed);
+            await apiSaveAll(seed);
+            setSyncStatus("online");
+            showToast("✅ sync ข้อมูลขึ้น Google Sheets แล้ว!");
+          }
+        }catch(e){
+          // ถ้า Sheets ใช้ไม่ได้ → ใช้ cache หรือ seed
+          setSyncStatus("offline");
+          const cached = loadFromCache();
+          if(cached.length){ setOrders(cached); }
+          else { const seed=getSeedData(); setOrders(seed); saveToCache(seed); }
+        }
+        setLoading(false);
       })();
+    } else {
+      // ออฟไลน์ → ใช้ cache หรือ seed
+      const cached = loadFromCache();
+      if(cached.length){ setOrders(cached); }
+      else { const seed=getSeedData(); setOrders(seed); saveToCache(seed); }
+      setLoading(false);
     }
   },[]);
 
