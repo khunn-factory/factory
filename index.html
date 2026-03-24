@@ -5,49 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="theme-color" content="#0c0c10">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ใบงานโรงงาน">
-<title>ระบบใบงานโรงงาน</title>
+<title>ระบบใบงานโรงงาน KHUNN</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:#0c0c10;color:#e4e0d8;font-family:'Noto Sans Thai','Sarabun',sans-serif;min-height:100vh}
-input,select,button,textarea{font-family:inherit}
-::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-track{background:#111}
-::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e2c;color:#e4e0d8;padding:10px 20px;border-radius:10px;font-size:13px;z-index:9999;border:1px solid #2a2a38;box-shadow:0 4px 20px #0008;animation:fadeIn .2s ease}
-@keyframes fadeIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
-.sdot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
-.sdot.online{background:#22c55e}.sdot.offline{background:#f59e0b}.sdot.syncing{background:#3b82f6;animation:pulse 1s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:#0c0c10; color:#e4e0d8; font-family:'Noto Sans Thai','Sarabun',sans-serif; min-height:100vh; }
+input,select,button,textarea { font-family:inherit; }
+::-webkit-scrollbar { width:4px; height:4px; }
+::-webkit-scrollbar-track { background:#111; }
+::-webkit-scrollbar-thumb { background:#333; border-radius:2px; }
+.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#1e1e2c; color:#e4e0d8; padding:10px 20px; border-radius:10px; font-size:13px; z-index:9999; border:1px solid #2a2a38; box-shadow:0 4px 20px #0008; animation:fadeIn 0.2s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+.sync-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:4px; }
+.sync-dot.online { background:#22c55e; }
+.sync-dot.offline { background:#f59e0b; }
+.sync-dot.syncing { background:#3b82f6; animation:pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 </style>
 </head>
 <body>
-<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px">
+<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;background:#0c0c10">
   <div style="font-size:48px">👟</div>
   <div style="color:#888;font-size:14px">กำลังโหลด...</div>
 </div></div>
 
 <script>
-// ═══════════════════════════════════════════
-//  ⚙️ ใส่ URL จาก Google Apps Script ที่นี่
-// ═══════════════════════════════════════════
 const API_URL = "https://script.google.com/macros/s/AKfycbzJHI4zU_h3VgeguJsSz3jMTp_5FiiN8X7RMJ65J5qANs2NaknTQf4u3yKFpBq1-OBIgQ/exec";
-// ตัวอย่าง: "https://script.google.com/macros/s/AKfycb.../exec"
-// ═══════════════════════════════════════════
-
-const CACHE_KEY = "khunn_factory_v2";
-const SYNC_KEY  = "khunn_pending_sync";
+const CACHE_KEY = "factory_orders_v1";
 const SYNC_INTERVAL = 30000;
 
-const loadFromCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY)) || []; } catch { return []; } };
-const saveToCache   = (d)  => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(d)); } catch {} };
-const isApiOk       = ()   => API_URL && !API_URL.includes("YOUR_APPS_SCRIPT");
-const showToast = (msg, color="#22c55e") => {
-  const el = document.createElement("div");
-  el.className = "toast"; el.style.borderColor = color+"66"; el.textContent = msg;
-  document.body.appendChild(el); setTimeout(()=>el.remove(), 2500);
-};
+const isApiOk = () => typeof API_URL!=="undefined" && API_URL && !API_URL.includes("YOUR_APPS");
+const loadFromCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY))||[]; } catch { return []; } };
+const saveToCache = o => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(o)); } catch {} };
+const showToast = (msg, color="#22c55e") => { const el=document.createElement("div"); el.className="toast"; el.style.borderColor=color+"66"; el.textContent=msg; document.body.appendChild(el); setTimeout(()=>el.remove(),2500); };
+
+const apiGet = async () => { const r=await fetch(API_URL+"?action=all&ts="+Date.now()); const j=await r.json(); if(!j.ok) throw new Error(j.error); return j.data; };
+const apiSaveAll = async orders => { const r=await fetch(API_URL,{method:"POST",body:JSON.stringify({action:"saveAll",payload:{orders}})});  const j=await r.json(); if(!j.ok) throw new Error(j.error); return j.result; };
 </script>
 
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -55,532 +48,1578 @@ const showToast = (msg, color="#22c55e") => {
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
 <script type="text/babel" data-presets="react">
-const {useState,useMemo,useEffect,useRef} = React;
-
-/* ═══════ CONSTANTS ═══════ */
-const DEPARTMENTS = [
-  {id:"pump",   name:"แผนกปั้มงาน",        short:"ปั้ม",    icon:"⚙️", color:"#f59e0b", staff:["ช่างใหม่"]},
-  {id:"upper",  name:"แผนกหนังหน้า",        short:"หนังหน้า",icon:"✂️", color:"#10b981", staff:["ช่างใหม่"]},
-  {id:"lace",   name:"แผนกร้อยงาน",         short:"ร้อยงาน",icon:"🧵", color:"#3b82f6", staff:["ช่างมิน","ช่างทุน"]},
-  {id:"sole",   name:"แผนกพื้น",            short:"พื้น",   icon:"👟", color:"#8b5cf6", staff:["ช่างขัน","ช่างโซ่ะ"]},
-  {id:"stitch", name:"แผนกเย็บพื้น",        short:"เย็บพื้น",icon:"🪡", color:"#ec4899", staff:[]},
-  {id:"finish", name:"แผนกเก็บงาน",         short:"เก็บงาน",icon:"📦", color:"#06b6d4", staff:["ช่างซอรีน"]},
-  {id:"deliver",name:"จัดส่งงานเข้าออฟฟิศ", short:"จัดส่ง", icon:"🚚", color:"#f97316", staff:[]},
-];
-const DEPT_ORDER = ["pump","upper","lace","sole","stitch","finish","deliver"];
-const ORDER_TYPES = {
-  F1:{label:"งานด่วน",  color:"#ef4444",bg:"#ef444414",icon:"⚡",prefix:"F1"},
-  L1:{label:"ล็อตในโรงงาน",color:"#60a5fa",bg:"#60a5fa14",icon:"🏭",prefix:"L1"},
-  L2:{label:"ล็อตช่างนอก", color:"#a78bfa",bg:"#a78bfa14",icon:"🔧",prefix:"L2"},
-};
-const TYPE_PRI = {F1:0,L1:1,L2:2};
-const ALERT_HRS = 48;
-const MODELS = ["SP","SSP","SPH","SK","TN","SM","SV","MT","RB","NV","WM","RK","PT","KN","MK","JT","PNL","PNH","PNM","TM","FR","RN","หลายรุ่น"];
-const COLORS  = ["BL","WH","DB","CR","LB","TN","AQ","GY","FG","G","RW","WN","PW","OR","VR","BR","DC","YL","MN","DG","หลายสี"];
-const SIZES   = ["35","36","37","38","38.5","39","40","41","41.5","42","43","44","45","46","47","49","49.5"];
-const STAFF_COLOR = {"ช่างใหม่":"#f59e0b","ช่างมิน":"#3b82f6","ช่างทุน":"#a78bfa","ช่างขัน":"#8b5cf6","ช่างโซ่ะ":"#ec4899","ช่างซอรีน":"#06b6d4"};
-
-/* ═══════ HELPERS ═══════ */
-let _pid = 9000; const newPid = () => String(++_pid);
-const formatDate = ts => { if(!ts)return"-"; const d=new Date(Number(ts)); return d.toLocaleDateString("th-TH",{day:"2-digit",month:"2-digit",year:"2-digit"})+" "+d.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"}); };
-const elapsed = ms => { const m=Math.floor(ms/60000); if(m<60)return m+"น."; if(m<1440)return Math.floor(m/60)+"ชม."; return Math.floor(m/1440)+"วัน"; };
-const genId = type => { const n=new Date(),dd=String(n.getDate()).padStart(2,"0"),mm=String(n.getMonth()+1).padStart(2,"0"),yy=String(n.getFullYear()).slice(-2); return `${ORDER_TYPES[type].prefix}-${dd}${mm}${yy}-${Math.random().toString(36).slice(2,5).toUpperCase()}`; };
-const getPairsInDept = (o,d) => (o.pairs||[]).filter(p=>p.currentDept===d);
-const getTotalInDept = (o,d) => getPairsInDept(o,d).reduce((s,p)=>s+(Number(p.qty)||0),0);
-const getOrderDepts  = o => [...new Set((o.pairs||[]).filter(p=>p.currentDept!=="done").map(p=>p.currentDept))].sort((a,b)=>DEPT_ORDER.indexOf(a)-DEPT_ORDER.indexOf(b));
-const orderDone      = o => (o.pairs||[]).length>0 && (o.pairs||[]).every(p=>p.currentDept==="done");
-const isOrderInDept  = (o,d) => d==="done"?orderDone(o):getPairsInDept(o,d).length>0;
-const isOverdue      = o => !orderDone(o)&&(o.pairs||[]).some(p=>p.currentDept!=="done"&&p.enteredAt&&(Date.now()-Number(p.enteredAt))>ALERT_HRS*3600000);
-const sortOrders     = l => [...l].sort((a,b)=>(TYPE_PRI[a.type]??9)-(TYPE_PRI[b.type]??9));
-
-/* ═══════ ADVANCE LOGIC ═══════ */
-const advanceSomePairs = (orders, orderId, pairId, qtyToAdvance) => {
-  return orders.map(o => {
-    if(o.id!==orderId) return o;
-    const pair = o.pairs.find(p=>p.id===pairId);
-    if(!pair) return o;
-    const curIdx  = DEPT_ORDER.indexOf(pair.currentDept);
-    const nextDept = curIdx>=DEPT_ORDER.length-1?"done":DEPT_ORDER[curIdx+1];
-    const qty = Math.min(qtyToAdvance, Number(pair.qty)||1);
-    let newPairs = o.pairs.filter(p=>p.id!==pairId);
-    if((Number(pair.qty)||1)-qty>0) newPairs.push({...pair,qty:(Number(pair.qty)||1)-qty});
-    const existing = newPairs.find(p=>p.model===pair.model&&p.color===pair.color&&p.size===pair.size&&p.currentDept===nextDept&&!p.label&&!pair.label);
-    if(existing) newPairs=newPairs.map(p=>p.id===existing.id?{...p,qty:(Number(p.qty)||1)+qty}:p);
-    else newPairs.push({id:newPid(),model:pair.model,color:pair.color,size:pair.size,qty,currentDept:nextDept,enteredAt:Date.now(),label:pair.label});
-    return {...o,pairs:newPairs};
-  });
-};
+const {useState,useMemo,useEffect,useCallback,useRef} = React;
 
 /* ═══════ SEED DATA ═══════ */
 function getSeedData() {
   return [
   {
-    id:"F1001", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:14, createdAt:1774000564410,
+    id:"F1001", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:14, createdAt:1774001222436,
     note:"PNH BL37·40 · PNH WN40 · PNL PW40 · PNL CR40 · SK BL39·44 · SK DC41 · SK DC44×2 · SM WN42 · TN BL42 · TN DC43",
     history:[
-      {dept:"pump",  status:"done", time:1774000564410,  endTime:1774007764410, note:"ช่างใหม่ 12คู่"},
-      {dept:"upper", status:"done", time:1774000564410,  endTime:1774022164410, note:"ช่างใหม่ 12คู่"},
-      {dept:"lace",  status:"done", time:1774022164410, endTime:1774094164410, note:"ช่างมิน 12คู่"},
-      {dept:"sole",  status:"done", time:1774094164410, endTime:1774353364410, note:"ช่างขัน (SK DC41·DC44×2 เสร็จ 14/03)"},
+      {dept:"pump",  status:"done", time:1774001222436,  endTime:1774008422436, note:"ช่างใหม่ 12คู่"},
+      {dept:"upper", status:"done", time:1774001222436,  endTime:1774022822436, note:"ช่างใหม่ 12คู่"},
+      {dept:"lace",  status:"done", time:1774022822436, endTime:1774094822436, note:"ช่างมิน 12คู่"},
+      {dept:"sole",  status:"done", time:1774094822436, endTime:1774354022436, note:"ช่างขัน (SK DC41·DC44×2 เสร็จ 14/03)"},
     ],
     pairs:[
-      {id:"2001",model:"PNH",color:"BL",size:"37",  qty:1,currentDept:"sole",   enteredAt:1774094164410,label:"PNHBL37-F1001-100326"},
-      {id:"2002",model:"PNH",color:"BL",size:"40",  qty:1,currentDept:"sole",   enteredAt:1774094164410,label:"PNHBL40-F1001-100326"},
-      {id:"2003",model:"PNH",color:"WN",size:"40",  qty:1,currentDept:"sole",   enteredAt:1774094164410,label:"PNHWN40-F1001-100326"},
-      {id:"2004",model:"PNL",color:"PW",size:"40",  qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"PNLPW40-F1001-100326"},
-      {id:"2005",model:"PNL",color:"CR",size:"40",  qty:1,currentDept:"finish", enteredAt:1774353364410,label:"PNLCR40-F1001-100326"},
-      {id:"2006",model:"SK", color:"BL",size:"39",  qty:1,currentDept:"finish", enteredAt:1774353364410,label:"SKBL39-F1001-100326"},
-      {id:"2007",model:"SK", color:"BL",size:"44",  qty:1,currentDept:"finish", enteredAt:1774353364410,label:"SKBL44-F1001-100326"},
-      {id:"2008",model:"SK", color:"DC",size:"41",  qty:1,currentDept:"finish", enteredAt:1774353364410,label:"SKDC41-F1001-100326"},
-      {id:"2009",model:"SK", color:"DC",size:"44",  qty:2,currentDept:"deliver", enteredAt:1774353364410,label:"SKDC44-F1001-100326"},
-      {id:"2010",model:"SM", color:"WN",size:"42",  qty:1,currentDept:"sole",   enteredAt:1774094164410,label:"SMWN42-F1001-100326"},
-      {id:"2011",model:"TN", color:"BL",size:"42",  qty:1,currentDept:"sole",   enteredAt:1774094164410,label:"TNBL42-F1001-100326"},
-      {id:"2012",model:"TN", color:"DC",size:"43",  qty:1,currentDept:"sole",   enteredAt:1774094164410,label:"TNDC43-F1001-100326"},
-      {id:"2013",model:"SK", color:"BL",size:"43",  qty:1,currentDept:"finish",enteredAt:1774353364410,label:"SKBL43-F1001-230326"},
+      {id:"2001",model:"PNH",color:"BL",size:"37",  qty:1,currentDept:"sole",   enteredAt:1774094822436,label:"PNHBL37-F1001-100326"},
+      {id:"2002",model:"PNH",color:"BL",size:"40",  qty:1,currentDept:"sole",   enteredAt:1774094822436,label:"PNHBL40-F1001-100326"},
+      {id:"2003",model:"PNH",color:"WN",size:"40",  qty:1,currentDept:"sole",   enteredAt:1774094822436,label:"PNHWN40-F1001-100326"},
+      {id:"2004",model:"PNL",color:"PW",size:"40",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"PNLPW40-F1001-100326"},
+      {id:"2005",model:"PNL",color:"CR",size:"40",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"PNLCR40-F1001-100326"},
+      {id:"2006",model:"SK", color:"BL",size:"39",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SKBL39-F1001-100326"},
+      {id:"2007",model:"SK", color:"BL",size:"44",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SKBL44-F1001-100326"},
+      {id:"2008",model:"SK", color:"DC",size:"41",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SKDC41-F1001-100326"},
+      {id:"2009",model:"SK", color:"DC",size:"44",  qty:2,currentDept:"deliver", enteredAt:1774354022436,label:"SKDC44-F1001-100326"},
+      {id:"2010",model:"SM", color:"WN",size:"42",  qty:1,currentDept:"sole",   enteredAt:1774094822436,label:"SMWN42-F1001-100326"},
+      {id:"2011",model:"TN", color:"BL",size:"42",  qty:1,currentDept:"sole",   enteredAt:1774094822436,label:"TNBL42-F1001-100326"},
+      {id:"2012",model:"TN", color:"DC",size:"43",  qty:1,currentDept:"sole",   enteredAt:1774094822436,label:"TNDC43-F1001-100326"},
+      {id:"2013",model:"SK", color:"BL",size:"43",  qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKBL43-F1001-230326"},
     ],
   },
   {
-    id:"F1002", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:9, createdAt:1774086964410,
+    id:"F1002", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:9, createdAt:1774087622436,
     note:"SP LB38.5 · KN BL39 · PNH DB39 · SK BL41 · SP FG44 · SK DC41 · TN BL42·43",
     history:[
-      {dept:"pump",  status:"done", time:1774086964410,  endTime:1774094164410, note:"ช่างใหม่ 8คู่"},
-      {dept:"upper", status:"done", time:1774086964410,  endTime:1774104964410, note:"ช่างใหม่ 8คู่"},
-      {dept:"lace",  status:"done", time:1774104964410, endTime:1774353364410, note:"ช่างมิน (12/03) + SK DC41·TN BL42·43 (14/03)"},
+      {dept:"pump",  status:"done", time:1774087622436,  endTime:1774094822436, note:"ช่างใหม่ 8คู่"},
+      {dept:"upper", status:"done", time:1774087622436,  endTime:1774105622436, note:"ช่างใหม่ 8คู่"},
+      {dept:"lace",  status:"done", time:1774105622436, endTime:1774354022436, note:"ช่างมิน (12/03) + SK DC41·TN BL42·43 (14/03)"},
     ],
     pairs:[
-      {id:"2014",model:"KN", color:"BL",size:"39",  qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"KNBL39-F1002-110326"},
-      {id:"2015",model:"SP", color:"LB",size:"38.5",qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"SPLB38.5-F1002-110326"},
-      {id:"2016",model:"SK", color:"DC",size:"41",  qty:1,currentDept:"finish",enteredAt:1774353364410,label:"SKDC41-F1002-110326"},
-      {id:"2017",model:"TN", color:"BL",size:"42",  qty:1,currentDept:"stitch", enteredAt:1774353364410,label:"TNBL42-F1002-110326"},
-      {id:"2018",model:"TN", color:"BL",size:"43",  qty:1,currentDept:"stitch", enteredAt:1774353364410,label:"TNBL43-F1002-110326"},
-      {id:"2019",model:"PNH",color:"DB",size:"39",  qty:1,currentDept:"deliver",   enteredAt:1774104964410,label:"PNHDB39-F1002-110326"},
-      {id:"2020",model:"PNH",color:"DC",size:"39",  qty:1,currentDept:"stitch",enteredAt:1774353364410},
-      {id:"2021",model:"SK", color:"BL",size:"41",  qty:1,currentDept:"finish",   enteredAt:1774104964410,label:"SKBL41-F1002-110326"},
-      {id:"2022",model:"SP", color:"FG",size:"44",  qty:1,currentDept:"deliver", enteredAt:1774353364410,label:"SPFG44-F1002-110326"},
+      {id:"2014",model:"KN", color:"BL",size:"39",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"KNBL39-F1002-110326"},
+      {id:"2015",model:"SP", color:"LB",size:"38.5",qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"SPLB38.5-F1002-110326"},
+      {id:"2016",model:"SK", color:"DC",size:"41",  qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKDC41-F1002-110326"},
+      {id:"2017",model:"TN", color:"BL",size:"42",  qty:1,currentDept:"stitch", enteredAt:1774354022436,label:"TNBL42-F1002-110326"},
+      {id:"2018",model:"TN", color:"BL",size:"43",  qty:1,currentDept:"stitch", enteredAt:1774354022436,label:"TNBL43-F1002-110326"},
+      {id:"2019",model:"PNH",color:"DB",size:"39",  qty:1,currentDept:"deliver",   enteredAt:1774105622436,label:"PNHDB39-F1002-110326"},
+      {id:"2020",model:"PNH",color:"DC",size:"39",  qty:1,currentDept:"stitch",enteredAt:1774354022436},
+      {id:"2021",model:"SK", color:"BL",size:"41",  qty:1,currentDept:"finish",   enteredAt:1774105622436,label:"SKBL41-F1002-110326"},
+      {id:"2022",model:"SP", color:"FG",size:"44",  qty:1,currentDept:"deliver", enteredAt:1774354022436,label:"SPFG44-F1002-110326"},
     ],
   },
   {
-    id:"L1001", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:13, createdAt:1773914164410,
+    id:"L1001", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:13, createdAt:1773914822436,
     note:"WM BL42 · SM DB38.5·39·40 · SSP DC42×2",
     history:[
-      {dept:"pump",  status:"done", time:1773914164410,  endTime:1773921364410, note:"ช่างใหม่ 6คู่"},
-      {dept:"upper", status:"done", time:1773921364410, endTime:1773935764410, note:"ช่างใหม่ 6คู่"},
-      {dept:"lace",  status:"done", time:1773935764410, endTime:1774014964410, note:"ช่างมิน 4คู่ · ช่างทุน 2คู่"},
+      {dept:"pump",  status:"done", time:1773914822436,  endTime:1773922022436, note:"ช่างใหม่ 6คู่"},
+      {dept:"upper", status:"done", time:1773922022436, endTime:1773936422436, note:"ช่างใหม่ 6คู่"},
+      {dept:"lace",  status:"done", time:1773936422436, endTime:1774015622436, note:"ช่างมิน 4คู่ · ช่างทุน 2คู่"},
     ],
     pairs:[
-      {id:"2023",model:"WM", color:"BL",size:"42",  qty:1,currentDept:"sole",   enteredAt:1774018564410},
-      {id:"2024",model:"SM", color:"DB",size:"38.5",qty:1,currentDept:"deliver",enteredAt:1774018564410},
-      {id:"2025",model:"SM", color:"DB",size:"39",  qty:1,currentDept:"sole",   enteredAt:1774018564410},
-      {id:"2026",model:"SM", color:"DB",size:"40",  qty:1,currentDept:"sole",   enteredAt:1774018564410},
-      {id:"2027",model:"SSP",color:"DC",size:"42",  qty:2,currentDept:"sole",   enteredAt:1774018564410},
-      {id:"2028",model:"NV", color:"WH",size:"41",  qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"NVWH41-L1001-090326"},
-      {id:"2029",model:"NV", color:"WH",size:"42",  qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"NVWH42-L1001-090326"},
-      {id:"2030",model:"NV", color:"WH",size:"43",  qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"NVWH43-L1001-090326"},
-      {id:"2031",model:"NV", color:"WH",size:"44",  qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"NVWH44-L1001-090326"},
-      {id:"2032",model:"SSP",color:"DG",size:"40",  qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"SSPDG40-L1001-090326"},
-      {id:"2033",model:"SSP",color:"DG",size:"42",  qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"SSPDG42-L1001-090326"},
-      {id:"2034",model:"SSP",color:"DG",size:"43",  qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"SSPDG43-L1001-090326"},
+      {id:"2023",model:"WM", color:"BL",size:"42",  qty:1,currentDept:"sole",   enteredAt:1774019222436},
+      {id:"2024",model:"SM", color:"DB",size:"38.5",qty:1,currentDept:"deliver",enteredAt:1774019222436},
+      {id:"2025",model:"SM", color:"DB",size:"39",  qty:1,currentDept:"sole",   enteredAt:1774019222436},
+      {id:"2026",model:"SM", color:"DB",size:"40",  qty:1,currentDept:"sole",   enteredAt:1774019222436},
+      {id:"2027",model:"SSP",color:"DC",size:"42",  qty:2,currentDept:"sole",   enteredAt:1774019222436},
+      {id:"2028",model:"NV", color:"WH",size:"41",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"NVWH41-L1001-090326"},
+      {id:"2029",model:"NV", color:"WH",size:"42",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"NVWH42-L1001-090326"},
+      {id:"2030",model:"NV", color:"WH",size:"43",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"NVWH43-L1001-090326"},
+      {id:"2031",model:"NV", color:"WH",size:"44",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"NVWH44-L1001-090326"},
+      {id:"2032",model:"SSP",color:"DG",size:"40",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"SSPDG40-L1001-090326"},
+      {id:"2033",model:"SSP",color:"DG",size:"42",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"SSPDG42-L1001-090326"},
+      {id:"2034",model:"SSP",color:"DG",size:"43",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"SSPDG43-L1001-090326"},
     ],
   },
   {
-    id:"L1002", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:16, createdAt:1774000564410,
+    id:"L1002", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:16, createdAt:1774001222436,
     note:"SP FG38·38.5·40·42×2·43·44 · SSP DG38·38.5·44·45·46 · TN DC41·42·43·44 · PNH BL40",
     history:[
-      {dept:"pump",  status:"done", time:1774000564410,  endTime:1774007764410, note:"ช่างใหม่ 4คู่ (09/03)"},
-      {dept:"pump",  status:"done", time:1774086964410,  endTime:1774094164410, note:"ช่างใหม่ 12คู่ (12/03)"},
-      {dept:"upper", status:"done", time:1774094164410, endTime:1774104964410, note:"ช่างใหม่ 16คู่"},
-      {dept:"lace",  status:"done", time:1774104964410, endTime:1774353364410, note:"ช่างมิน 10คู่ (12/03) + SSP DG45·46 (14/03)"},
+      {dept:"pump",  status:"done", time:1774001222436,  endTime:1774008422436, note:"ช่างใหม่ 4คู่ (09/03)"},
+      {dept:"pump",  status:"done", time:1774087622436,  endTime:1774094822436, note:"ช่างใหม่ 12คู่ (12/03)"},
+      {dept:"upper", status:"done", time:1774094822436, endTime:1774105622436, note:"ช่างใหม่ 16คู่"},
+      {dept:"lace",  status:"done", time:1774105622436, endTime:1774354022436, note:"ช่างมิน 10คู่ (12/03) + SSP DG45·46 (14/03)"},
     ],
     pairs:[
-      {id:"2035",model:"TN", color:"DC",size:"41",  qty:1,currentDept:"finish",enteredAt:1774353364410,label:"TNDC41-L1002-120326"},
-      {id:"2036",model:"TN", color:"DC",size:"42",  qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"TNDC42-L1002-120326"},
-      {id:"2037",model:"SP", color:"FG",size:"40",  qty:1,currentDept:"finish", enteredAt:1774353364410,label:"SPFG40-L1002-120326"},
-      {id:"2038",model:"SP", color:"FG",size:"38",  qty:1,currentDept:"sole",  enteredAt:1774288564410,label:"SPFG38-L1002-120326"},
-      {id:"2039",model:"SSP",color:"DG",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774288564410,label:"SSPDG44-L1002-120326"},
-      {id:"2040",model:"SSP",color:"DG",size:"38.5",qty:1,currentDept:"finish", enteredAt:1774353364410,label:"SSPDG38.5-L1002-120326"},
-      {id:"2041",model:"SSP",color:"DG",size:"38",  qty:1,currentDept:"sole",  enteredAt:1774288564410,label:"SSPDG38-L1002-120326"},
-      {id:"2042",model:"PNH",color:"BL",size:"40",  qty:1,currentDept:"deliver",  enteredAt:1774288564410,label:"PNHBL40-L1002-120326"},
-      {id:"2043",model:"TN", color:"DC",size:"43",  qty:1,currentDept:"finish", enteredAt:1774353364410,label:"TNDC43-L1002-120326"},
-      {id:"2044",model:"TN", color:"DC",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774288564410,label:"TNDC44-L1002-120326"},
-      {id:"2045",model:"SSP",color:"DG",size:"45",  qty:1,currentDept:"stitch", enteredAt:1774353364410,label:"SSPDG45-L1002-120326"},
-      {id:"2046",model:"SSP",color:"DG",size:"46",  qty:1,currentDept:"stitch", enteredAt:1774353364410,label:"SSPDG46-L1002-120326"},
-      {id:"2047",model:"SP", color:"FG",size:"38.5",qty:1,currentDept:"lace",  enteredAt:1774104964410,label:"SPFG38.5-L1002-120326"},
-      {id:"2048",model:"SP", color:"FG",size:"42",  qty:2,currentDept:"finish",  enteredAt:1774104964410,label:"SPFG42-L1002-120326"},
-      {id:"2049",model:"SP", color:"FG",size:"43",  qty:1,currentDept:"finish",  enteredAt:1774104964410,label:"SPFG43-L1002-120326"},
-      {id:"2050",model:"SP", color:"FG",size:"44",  qty:1,currentDept:"lace",  enteredAt:1774104964410,label:"SPFG44-L1002-120326"},
+      {id:"2035",model:"TN", color:"DC",size:"41",  qty:1,currentDept:"finish",enteredAt:1774354022436,label:"TNDC41-L1002-120326"},
+      {id:"2036",model:"TN", color:"DC",size:"42",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"TNDC42-L1002-120326"},
+      {id:"2037",model:"SP", color:"FG",size:"40",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SPFG40-L1002-120326"},
+      {id:"2038",model:"SP", color:"FG",size:"38",  qty:1,currentDept:"sole",  enteredAt:1774289222436,label:"SPFG38-L1002-120326"},
+      {id:"2039",model:"SSP",color:"DG",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774289222436,label:"SSPDG44-L1002-120326"},
+      {id:"2040",model:"SSP",color:"DG",size:"38.5",qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SSPDG38.5-L1002-120326"},
+      {id:"2041",model:"SSP",color:"DG",size:"38",  qty:1,currentDept:"sole",  enteredAt:1774289222436,label:"SSPDG38-L1002-120326"},
+      {id:"2042",model:"PNH",color:"BL",size:"40",  qty:1,currentDept:"deliver",  enteredAt:1774289222436,label:"PNHBL40-L1002-120326"},
+      {id:"2043",model:"TN", color:"DC",size:"43",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"TNDC43-L1002-120326"},
+      {id:"2044",model:"TN", color:"DC",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774289222436,label:"TNDC44-L1002-120326"},
+      {id:"2045",model:"SSP",color:"DG",size:"45",  qty:1,currentDept:"stitch", enteredAt:1774354022436,label:"SSPDG45-L1002-120326"},
+      {id:"2046",model:"SSP",color:"DG",size:"46",  qty:1,currentDept:"stitch", enteredAt:1774354022436,label:"SSPDG46-L1002-120326"},
+      {id:"2047",model:"SP", color:"FG",size:"38.5",qty:1,currentDept:"lace",  enteredAt:1774105622436,label:"SPFG38.5-L1002-120326"},
+      {id:"2048",model:"SP", color:"FG",size:"42",  qty:2,currentDept:"finish",  enteredAt:1774105622436,label:"SPFG42-L1002-120326"},
+      {id:"2049",model:"SP", color:"FG",size:"43",  qty:1,currentDept:"finish",  enteredAt:1774105622436,label:"SPFG43-L1002-120326"},
+      {id:"2050",model:"SP", color:"FG",size:"44",  qty:1,currentDept:"lace",  enteredAt:1774105622436,label:"SPFG44-L1002-120326"},
     ],
   },
   {
-    id:"L2001", type:"L2", model:"SK", color:"BL", totalPairs:61, createdAt:1773914164410,
+    id:"L2001", type:"L2", model:"SK", color:"BL", totalPairs:61, createdAt:1773914822436,
     note:"SK BL 36·37·38×4·39×3·40×2·41×4·42×5·43×5·44×2·45×2·46×2 + SP BL40·41·44·46 + SP FG42",
     history:[
-      {dept:"pump",  status:"done", time:1773914164410,  endTime:1773921364410, note:"ช่างใหม่ 12คู่ (09/03)"},
-      {dept:"upper", status:"done", time:1773921364410, endTime:1773935764410, note:"ช่างใหม่ 12คู่"},
-      {dept:"lace",  status:"done", time:1773935764410, endTime:1774259764410,  note:"ช่างมิน BL41×1 + ช่างทุน 17คู่ (09/03) + BL43×4·BL41×1·BL38×1 (13/03) + BL37×1·BL40×2·BL38×3 (14/03)"},
-      {dept:"sole",  status:"done", time:1774259764410,  endTime:1774353364410, note:"ช่างโซ่ะ BL41·45 (12/03) + ช่างขัน BL38·BL41·BL42×3·BL43×4 (14/03)"},
+      {dept:"pump",  status:"done", time:1773914822436,  endTime:1773922022436, note:"ช่างใหม่ 12คู่ (09/03)"},
+      {dept:"upper", status:"done", time:1773922022436, endTime:1773936422436, note:"ช่างใหม่ 12คู่"},
+      {dept:"lace",  status:"done", time:1773936422436, endTime:1774260422436,  note:"ช่างมิน BL41×1 + ช่างทุน 17คู่ (09/03) + BL43×4·BL41×1·BL38×1 (13/03) + BL37×1·BL40×2·BL38×3 (14/03)"},
+      {dept:"sole",  status:"done", time:1774260422436,  endTime:1774354022436, note:"ช่างโซ่ะ BL41·45 (12/03) + ช่างขัน BL38·BL41·BL42×3·BL43×4 (14/03)"},
     ],
     pairs:[
-      {id:"2051",model:"SK",color:"BL",size:"36",qty:1,currentDept:"finish",enteredAt:1774353364410,label:"SKBL36-L2001-090326"},
-      {id:"2052",model:"SK",color:"BL",size:"39",qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"SKBL39a-L2001-090326"},
-      {id:"2053",model:"SK",color:"BL",size:"39",qty:2,currentDept:"finish",enteredAt:1774353364410,label:"SKBL39b-L2001-090326"},
-      {id:"2054",model:"SK",color:"BL",size:"41",qty:1,currentDept:"finish",enteredAt:1774353364410,label:"SKBL41a-L2001-090326"},
-      {id:"2055",model:"SK",color:"BL",size:"44",qty:3,currentDept:"deliver",enteredAt:1774353364410,label:"SKBL44-L2001-090326"},
-      {id:"2056",model:"SK",color:"BL",size:"38",qty:1,currentDept:"finish",enteredAt:1774353364410,label:"SKBL38a-L2001-090326"},
-      {id:"2057",model:"SK",color:"BL",size:"41",qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"SKBL41b-L2001-090326"},
-      {id:"2058",model:"SK",color:"BL",size:"42",qty:1,currentDept:"finish",enteredAt:1774353364410,label:"SKBL42x1-L2001-090326"},
-      {id:"2059",model:"SK",color:"BL",size:"42",qty:2,currentDept:"finish",  enteredAt:1774259764410, label:"SKBL42x2b-L2001-090326"},
-      {id:"2060",model:"SK",color:"BL",size:"43",qty:1,currentDept:"finish",enteredAt:1774353364410,label:"SKBL43x4-L2001-090326"},
-      {id:"2061",model:"SK",color:"BL",size:"43",qty:3,currentDept:"finish",enteredAt:1774353364410,label:"SKBL43x3-L2001-090326"},
-      {id:"2062",model:"SK",color:"BL",size:"37",qty:1,currentDept:"sole",  enteredAt:1774346164410, label:"SKBL37-L2001-090326"},
-      {id:"2063",model:"SK",color:"BL",size:"38",qty:3,currentDept:"sole",  enteredAt:1774346164410, label:"SKBL38b-L2001-090326"},
-      {id:"2064",model:"SK",color:"BL",size:"40",qty:2,currentDept:"finish",enteredAt:1774353364410,label:"SKBL40-L2001-090326"},
-      {id:"2065",model:"SK",color:"BL",size:"41",qty:2,currentDept:"sole",  enteredAt:1774259764410, label:"SKBL41c-L2001-090326"},
-      {id:"2066",model:"SK",color:"BL",size:"42",qty:2,currentDept:"finish",  enteredAt:1774259764410, label:"SKBL42x2-L2001-090326"},
-      {id:"2067",model:"SK",color:"BL",size:"43",qty:1,currentDept:"finish",  enteredAt:1774259764410, label:"SKBL43-L2001-090326"},
-      {id:"2068",model:"SK",color:"BL",size:"45",qty:2,currentDept:"sole",  enteredAt:1774259764410, label:"SKBL45-L2001-090326"},
-      {id:"2069",model:"SK",color:"BL",size:"46",qty:2,currentDept:"sole",  enteredAt:1774259764410, label:"SKBL46-L2001-090326"},
-      {id:"2070",model:"SP",color:"BL",size:"40",  qty:1,currentDept:"finish",enteredAt:1774353364410,label:"SPBL40-L2001-160326"},
-      {id:"2071",model:"SP",color:"FG",size:"42",  qty:2,currentDept:"finish",enteredAt:1774353364410,label:"SPFG42-L2001-160326"},
-      {id:"2072",model:"SP",color:"BL",size:"40",  qty:2,currentDept:"sole",  enteredAt:1774353364410,label:"SPBL40x2-L2001-160326"},
-      {id:"2073",model:"SP",color:"BL",size:"41",  qty:2,currentDept:"sole",  enteredAt:1774353364410,label:"SPBL41-L2001-160326"},
-      {id:"2074",model:"SP",color:"BL",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774353364410,label:"SPBL44-L2001-160326"},
-      {id:"2075",model:"SP",color:"BL",size:"46",  qty:2,currentDept:"sole",  enteredAt:1774353364410,label:"SPBL46-L2001-160326"},
-      {id:"2076",model:"SP",color:"BL",size:"45",  qty:1,currentDept:"sole",  enteredAt:1774353364410,label:"SPBL45b-L2001-180326"},
-      {id:"2077",model:"SP",color:"BL",size:"43",  qty:4,currentDept:"sole",  enteredAt:1774353364410,label:"SPBL43x5-L2001-180326"},
-      {id:"2078",model:"SP",color:"BL",size:"43",  qty:1,currentDept:"finish",  enteredAt:1774353364410,label:"SPBL43x1a-L2001-200326"},
-      {id:"2079",model:"SP",color:"BL",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774353364410,label:"SPBL44c-L2001-190326"},
-      {id:"2080",model:"SP",color:"BL",size:"43",  qty:2,currentDept:"stitch",  enteredAt:1774353364410,label:"SPBL43x2-L2001-190326"},
-      {id:"2081",model:"SP",color:"BL",size:"41",  qty:2,currentDept:"sole",  enteredAt:1774353364410,label:"SPBL41-L2001-190326"},
-      {id:"2082",model:"SP",color:"BL",size:"40",  qty:2,currentDept:"sole",  enteredAt:1774353364410,label:"SPBL40x2-L2001-190326"},
-      {id:"2083",model:"SSP",color:"BL",size:"44", qty:1,currentDept:"stitch",  enteredAt:1774353364410,label:"SSPBL44-L2001-180326"},
-      {id:"2084",model:"SSP",color:"BL",size:"42", qty:2,currentDept:"stitch",  enteredAt:1774353364410,label:"SSPBL42x2-L2001-190326"},
-      {id:"2085",model:"TN",color:"BL",size:"42",  qty:1,currentDept:"finish",enteredAt:1774353364410,label:"TNBL42-L2001-180326"},
-      {id:"2086",model:"TN",color:"BL",size:"43",  qty:1,currentDept:"finish",enteredAt:1774353364410,label:"TNBL43-L2001-180326"},
-      {id:"2087",model:"SP",color:"BL",size:"45",  qty:1,currentDept:"sole",  enteredAt:1774353364410,label:"SPBL45-L2001-170326"},
-      {id:"2088",model:"SP",color:"BL",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774353364410,label:"SPBL44b-L2001-170326"},
-      {id:"2089",model:"SP",color:"BL",size:"42",  qty:2,currentDept:"finish",enteredAt:1774353364410,label:"SPBL42x2a-L2001-200326"},
-      {id:"2090",model:"SP",color:"BL",size:"42",  qty:3,currentDept:"stitch",  enteredAt:1774353364410,label:"SPBL42x3-L2001-170326"},
+      {id:"2051",model:"SK",color:"BL",size:"36",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKBL36-L2001-090326"},
+      {id:"2052",model:"SK",color:"BL",size:"39",qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"SKBL39a-L2001-090326"},
+      {id:"2053",model:"SK",color:"BL",size:"39",qty:2,currentDept:"finish",enteredAt:1774354022436,label:"SKBL39b-L2001-090326"},
+      {id:"2054",model:"SK",color:"BL",size:"41",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKBL41a-L2001-090326"},
+      {id:"2055",model:"SK",color:"BL",size:"44",qty:3,currentDept:"deliver",enteredAt:1774354022436,label:"SKBL44-L2001-090326"},
+      {id:"2056",model:"SK",color:"BL",size:"38",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKBL38a-L2001-090326"},
+      {id:"2057",model:"SK",color:"BL",size:"41",qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"SKBL41b-L2001-090326"},
+      {id:"2058",model:"SK",color:"BL",size:"42",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKBL42x1-L2001-090326"},
+      {id:"2059",model:"SK",color:"BL",size:"42",qty:2,currentDept:"finish",  enteredAt:1774260422436, label:"SKBL42x2b-L2001-090326"},
+      {id:"2060",model:"SK",color:"BL",size:"43",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKBL43x4-L2001-090326"},
+      {id:"2061",model:"SK",color:"BL",size:"43",qty:3,currentDept:"finish",enteredAt:1774354022436,label:"SKBL43x3-L2001-090326"},
+      {id:"2062",model:"SK",color:"BL",size:"37",qty:1,currentDept:"sole",  enteredAt:1774346822436, label:"SKBL37-L2001-090326"},
+      {id:"2063",model:"SK",color:"BL",size:"38",qty:3,currentDept:"sole",  enteredAt:1774346822436, label:"SKBL38b-L2001-090326"},
+      {id:"2064",model:"SK",color:"BL",size:"40",qty:2,currentDept:"finish",enteredAt:1774354022436,label:"SKBL40-L2001-090326"},
+      {id:"2065",model:"SK",color:"BL",size:"41",qty:2,currentDept:"sole",  enteredAt:1774260422436, label:"SKBL41c-L2001-090326"},
+      {id:"2066",model:"SK",color:"BL",size:"42",qty:2,currentDept:"finish",  enteredAt:1774260422436, label:"SKBL42x2-L2001-090326"},
+      {id:"2067",model:"SK",color:"BL",size:"43",qty:1,currentDept:"finish",  enteredAt:1774260422436, label:"SKBL43-L2001-090326"},
+      {id:"2068",model:"SK",color:"BL",size:"45",qty:2,currentDept:"sole",  enteredAt:1774260422436, label:"SKBL45-L2001-090326"},
+      {id:"2069",model:"SK",color:"BL",size:"46",qty:2,currentDept:"sole",  enteredAt:1774260422436, label:"SKBL46-L2001-090326"},
+      {id:"2070",model:"SP",color:"BL",size:"40",  qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SPBL40-L2001-160326"},
+      {id:"2071",model:"SP",color:"FG",size:"42",  qty:2,currentDept:"finish",enteredAt:1774354022436,label:"SPFG42-L2001-160326"},
+      {id:"2072",model:"SP",color:"BL",size:"40",  qty:2,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL40x2-L2001-160326"},
+      {id:"2073",model:"SP",color:"BL",size:"41",  qty:2,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL41-L2001-160326"},
+      {id:"2074",model:"SP",color:"BL",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL44-L2001-160326"},
+      {id:"2075",model:"SP",color:"BL",size:"46",  qty:2,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL46-L2001-160326"},
+      {id:"2076",model:"SP",color:"BL",size:"45",  qty:1,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL45b-L2001-180326"},
+      {id:"2077",model:"SP",color:"BL",size:"43",  qty:4,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL43x5-L2001-180326"},
+      {id:"2078",model:"SP",color:"BL",size:"43",  qty:1,currentDept:"finish",  enteredAt:1774354022436,label:"SPBL43x1a-L2001-200326"},
+      {id:"2079",model:"SP",color:"BL",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL44c-L2001-190326"},
+      {id:"2080",model:"SP",color:"BL",size:"43",  qty:2,currentDept:"stitch",  enteredAt:1774354022436,label:"SPBL43x2-L2001-190326"},
+      {id:"2081",model:"SP",color:"BL",size:"41",  qty:2,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL41-L2001-190326"},
+      {id:"2082",model:"SP",color:"BL",size:"40",  qty:2,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL40x2-L2001-190326"},
+      {id:"2083",model:"SSP",color:"BL",size:"44", qty:1,currentDept:"stitch",  enteredAt:1774354022436,label:"SSPBL44-L2001-180326"},
+      {id:"2084",model:"SSP",color:"BL",size:"42", qty:2,currentDept:"stitch",  enteredAt:1774354022436,label:"SSPBL42x2-L2001-190326"},
+      {id:"2085",model:"TN",color:"BL",size:"42",  qty:1,currentDept:"finish",enteredAt:1774354022436,label:"TNBL42-L2001-180326"},
+      {id:"2086",model:"TN",color:"BL",size:"43",  qty:1,currentDept:"finish",enteredAt:1774354022436,label:"TNBL43-L2001-180326"},
+      {id:"2087",model:"SP",color:"BL",size:"45",  qty:1,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL45-L2001-170326"},
+      {id:"2088",model:"SP",color:"BL",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL44b-L2001-170326"},
+      {id:"2089",model:"SP",color:"BL",size:"42",  qty:2,currentDept:"finish",enteredAt:1774354022436,label:"SPBL42x2a-L2001-200326"},
+      {id:"2090",model:"SP",color:"BL",size:"42",  qty:3,currentDept:"stitch",  enteredAt:1774354022436,label:"SPBL42x3-L2001-170326"},
     ],
   },
   {
-    id:"F1003", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:7, createdAt:1774259764410,
+    id:"F1003", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:7, createdAt:1774260422436,
     note:"PNL WN44 · MK DC42 · SM BL42·41·39 · PNH DC41 · SPH CR40",
     history:[
-      {dept:"pump",  status:"done", time:1774259764410,  endTime:1774266964410, note:"ช่างใหม่ 7คู่ (13/03)"},
-      {dept:"upper", status:"done", time:1774259764410,  endTime:1774277764410, note:"ช่างใหม่ 7คู่"},
-      {dept:"lace",  status:"done", time:1774277764410, endTime:1774353364410, note:"ช่างมิน 6คู่ (14/03)"},
+      {dept:"pump",  status:"done", time:1774260422436,  endTime:1774267622436, note:"ช่างใหม่ 7คู่ (13/03)"},
+      {dept:"upper", status:"done", time:1774260422436,  endTime:1774278422436, note:"ช่างใหม่ 7คู่"},
+      {dept:"lace",  status:"done", time:1774278422436, endTime:1774354022436, note:"ช่างมิน 6คู่ (14/03)"},
     ],
     pairs:[
-      {id:"2091",model:"MK", color:"DC",size:"42",qty:1,currentDept:"deliver",  enteredAt:1774353364410,label:"MKDC42-F1003-130326"},
-      {id:"2092",model:"SM", color:"BL",size:"39",qty:1,currentDept:"deliver",  enteredAt:1774353364410,label:"SMBL39-F1003-130326"},
-      {id:"2093",model:"SM", color:"BL",size:"41",qty:1,currentDept:"deliver",  enteredAt:1774353364410,label:"SMBL41-F1003-130326"},
-      {id:"2094",model:"SM", color:"BL",size:"42",qty:1,currentDept:"deliver",  enteredAt:1774353364410,label:"SMBL42-F1003-130326"},
-      {id:"2095",model:"PNL",color:"WN",size:"44",qty:1,currentDept:"deliver",  enteredAt:1774353364410,label:"PNLWN44-F1003-130326"},
-      {id:"2096",model:"PNH",color:"DC",size:"41",qty:1,currentDept:"finish",  enteredAt:1774353364410,label:"PNHDC41-F1003-130326"},
-      {id:"2097",model:"SPH",color:"CR",size:"40",qty:1,currentDept:"finish",enteredAt:1774353364410,label:"SPHCR40-F1003-130326"},
+      {id:"2091",model:"MK", color:"DC",size:"42",qty:1,currentDept:"deliver",  enteredAt:1774354022436,label:"MKDC42-F1003-130326"},
+      {id:"2092",model:"SM", color:"BL",size:"39",qty:1,currentDept:"deliver",  enteredAt:1774354022436,label:"SMBL39-F1003-130326"},
+      {id:"2093",model:"SM", color:"BL",size:"41",qty:1,currentDept:"deliver",  enteredAt:1774354022436,label:"SMBL41-F1003-130326"},
+      {id:"2094",model:"SM", color:"BL",size:"42",qty:1,currentDept:"deliver",  enteredAt:1774354022436,label:"SMBL42-F1003-130326"},
+      {id:"2095",model:"PNL",color:"WN",size:"44",qty:1,currentDept:"deliver",  enteredAt:1774354022436,label:"PNLWN44-F1003-130326"},
+      {id:"2096",model:"PNH",color:"DC",size:"41",qty:1,currentDept:"finish",  enteredAt:1774354022436,label:"PNHDC41-F1003-130326"},
+      {id:"2097",model:"SPH",color:"CR",size:"40",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SPHCR40-F1003-130326"},
     ],
   },
   {
-    id:"L1003", type:"L1", model:"PNH", color:"หลายสี", totalPairs:6, createdAt:1774259764410,
+    id:"L1003", type:"L1", model:"PNH", color:"หลายสี", totalPairs:6, createdAt:1774260422436,
     note:"PNH DC41·44·45 · PNH WN40·41·43",
     history:[
-      {dept:"pump",  status:"done", time:1774259764410,  endTime:1774266964410, note:"ช่างใหม่ 6คู่ (13/03)"},
-      {dept:"upper", status:"done", time:1774259764410,  endTime:1774277764410, note:"ช่างใหม่ 6คู่"},
-      {dept:"lace",  status:"done", time:1774277764410, endTime:1774353364410, note:"ช่างมิน PNH WN40·41·43 (14/03)"},
+      {dept:"pump",  status:"done", time:1774260422436,  endTime:1774267622436, note:"ช่างใหม่ 6คู่ (13/03)"},
+      {dept:"upper", status:"done", time:1774260422436,  endTime:1774278422436, note:"ช่างใหม่ 6คู่"},
+      {dept:"lace",  status:"done", time:1774278422436, endTime:1774354022436, note:"ช่างมิน PNH WN40·41·43 (14/03)"},
     ],
     pairs:[
-      {id:"2098",model:"PNH",color:"WN",size:"40",qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"PNHWN40-L1003-130326"},
-      {id:"2099",model:"PNH",color:"WN",size:"41",qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"PNHWN41-L1003-130326"},
-      {id:"2100",model:"PNH",color:"WN",size:"43",qty:1,currentDept:"deliver",enteredAt:1774353364410,label:"PNHWN43-L1003-130326"},
-      {id:"2101",model:"PNH",color:"DC",size:"41",qty:1,currentDept:"deliver", enteredAt:1774353364410,label:"PNHDC41-L1003-130326"},
-      {id:"2102",model:"PNH",color:"DC",size:"44",qty:1,currentDept:"deliver", enteredAt:1774353364410,label:"PNHDC44-L1003-130326"},
-      {id:"2103",model:"PNH",color:"DC",size:"45",qty:1,currentDept:"deliver", enteredAt:1774353364410,label:"PNHDC45-L1003-130326"},
+      {id:"2098",model:"PNH",color:"WN",size:"40",qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"PNHWN40-L1003-130326"},
+      {id:"2099",model:"PNH",color:"WN",size:"41",qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"PNHWN41-L1003-130326"},
+      {id:"2100",model:"PNH",color:"WN",size:"43",qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"PNHWN43-L1003-130326"},
+      {id:"2101",model:"PNH",color:"DC",size:"41",qty:1,currentDept:"deliver", enteredAt:1774354022436,label:"PNHDC41-L1003-130326"},
+      {id:"2102",model:"PNH",color:"DC",size:"44",qty:1,currentDept:"deliver", enteredAt:1774354022436,label:"PNHDC44-L1003-130326"},
+      {id:"2103",model:"PNH",color:"DC",size:"45",qty:1,currentDept:"deliver", enteredAt:1774354022436,label:"PNHDC45-L1003-130326"},
     ],
   },
   {
-    id:"F1004", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774346164410,
+    id:"F1004", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774346822436,
     note:"SK BL38 · PNH BL38.5 · PNL PW40 · PNM BL41.5 · NV BL45 · SK DC41·42",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 7คู่ (14/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 7คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 7คู่ (14/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 7คู่"},
     ],
     pairs:[
-      {id:"2104",model:"SK", color:"BL",size:"38",  qty:1,currentDept:"sole", enteredAt:1774353364410,label:"SKBL38-F1004-140326"},
-      {id:"2105",model:"SK", color:"BL",size:"38.5",qty:1,currentDept:"sole", enteredAt:1774353364410,label:"SKBL38.5-F1004-140326"},
-      {id:"2106",model:"PNH",color:"BL",size:"38.5",qty:1,currentDept:"finish", enteredAt:1774353364410,label:"PNHBL38.5-F1004-140326"},
-      {id:"2107",model:"PNL",color:"PW",size:"40",  qty:1,currentDept:"deliver", enteredAt:1774353364410,label:"PNLPW40-F1004-140326"},
-      {id:"2108",model:"PNM",color:"BL",size:"41.5",qty:1,currentDept:"finish", enteredAt:1774353364410,label:"PNMBL41.5-F1004-140326"},
-      {id:"2109",model:"NV", color:"BL",size:"45",  qty:1,currentDept:"sole", enteredAt:1774353364410,label:"NVBL45-F1004-140326"},
-      {id:"2110",model:"SK", color:"DC",size:"41",  qty:1,currentDept:"finish", enteredAt:1774353364410,label:"SKDC41-F1004-140326"},
-      {id:"2111",model:"SK", color:"DC",size:"42",  qty:1,currentDept:"finish", enteredAt:1774353364410,label:"SKDC42-F1004-140326"},
+      {id:"2104",model:"SK", color:"BL",size:"38",  qty:1,currentDept:"sole", enteredAt:1774354022436,label:"SKBL38-F1004-140326"},
+      {id:"2105",model:"SK", color:"BL",size:"38.5",qty:1,currentDept:"sole", enteredAt:1774354022436,label:"SKBL38.5-F1004-140326"},
+      {id:"2106",model:"PNH",color:"BL",size:"38.5",qty:1,currentDept:"finish", enteredAt:1774354022436,label:"PNHBL38.5-F1004-140326"},
+      {id:"2107",model:"PNL",color:"PW",size:"40",  qty:1,currentDept:"deliver", enteredAt:1774354022436,label:"PNLPW40-F1004-140326"},
+      {id:"2108",model:"PNM",color:"BL",size:"41.5",qty:1,currentDept:"finish", enteredAt:1774354022436,label:"PNMBL41.5-F1004-140326"},
+      {id:"2109",model:"NV", color:"BL",size:"45",  qty:1,currentDept:"sole", enteredAt:1774354022436,label:"NVBL45-F1004-140326"},
+      {id:"2110",model:"SK", color:"DC",size:"41",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SKDC41-F1004-140326"},
+      {id:"2111",model:"SK", color:"DC",size:"42",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SKDC42-F1004-140326"},
     ],
   },
   {
-    id:"L1004", type:"L1", model:"SM", color:"หลายสี", totalPairs:5, createdAt:1774346164410,
+    id:"L1004", type:"L1", model:"SM", color:"หลายสี", totalPairs:5, createdAt:1774346822436,
     note:"SM BL44·45 · SM WN38·39·40",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 5คู่ (14/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 5คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 5คู่ (14/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 5คู่"},
     ],
     pairs:[
-      {id:"2112",model:"SM",color:"BL",size:"44",qty:1,currentDept:"finish",enteredAt:1774364164410,label:"SMBL44-L1004-140326"},
-      {id:"2113",model:"SM",color:"BL",size:"45",qty:1,currentDept:"finish",enteredAt:1774364164410,label:"SMBL45-L1004-140326"},
-      {id:"2114",model:"SM",color:"WN",size:"38",qty:1,currentDept:"finish",enteredAt:1774364164410,label:"SMWN38-L1004-140326"},
-      {id:"2115",model:"SM",color:"WN",size:"39",qty:1,currentDept:"finish",enteredAt:1774364164410,label:"SMWN39-L1004-140326"},
-      {id:"2116",model:"SM",color:"WN",size:"40",qty:1,currentDept:"finish",enteredAt:1774364164410,label:"SMWN40-L1004-140326"},
+      {id:"2112",model:"SM",color:"BL",size:"44",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMBL44-L1004-140326"},
+      {id:"2113",model:"SM",color:"BL",size:"45",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMBL45-L1004-140326"},
+      {id:"2114",model:"SM",color:"WN",size:"38",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMWN38-L1004-140326"},
+      {id:"2115",model:"SM",color:"WN",size:"39",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMWN39-L1004-140326"},
+      {id:"2116",model:"SM",color:"WN",size:"40",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMWN40-L1004-140326"},
     ],
   },
   {
-    id:"F1005", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:2, createdAt:1774346164410,
+    id:"F1005", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:2, createdAt:1774346822436,
     note:"SM BL44 (ลค.ออฟฟิศ) · RK BL41 (สานิตย์ จิตประพันธ์)",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 2คู่ (16/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 2คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 2คู่ (16/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 2คู่"},
     ],
     pairs:[
-      {id:"2117",model:"SM",color:"BL",size:"44",qty:1,currentDept:"finish",enteredAt:1774364164410,label:"SMBL44-F1005-160326"},
-      {id:"2118",model:"RK",color:"BL",size:"41",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"RKBL41-F1005-160326"},
+      {id:"2117",model:"SM",color:"BL",size:"44",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMBL44-F1005-160326"},
+      {id:"2118",model:"RK",color:"BL",size:"41",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"RKBL41-F1005-160326"},
     ],
   },
   {
-    id:"L1005", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774346164410,
+    id:"L1005", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774346822436,
     note:"SK DC38·38.5·39·45·46 · PT BL41·42·43 · PT WN40·41",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 10คู่ (16/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 8คู่ (ยกเว้น PT WN40·41)"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 10คู่ (16/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 8คู่ (ยกเว้น PT WN40·41)"},
     ],
     pairs:[
-      {id:"2119",model:"SK",color:"DC",size:"38",  qty:1,currentDept:"sole",enteredAt:1774364164410,label:"SKDC38-L1005-160326"},
-      {id:"2120",model:"SK",color:"DC",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774364164410,label:"SKDC38.5-L1005-160326"},
-      {id:"2121",model:"SK",color:"DC",size:"39",  qty:1,currentDept:"finish",enteredAt:1774364164410,label:"SKDC39-L1005-160326"},
-      {id:"2122",model:"SK",color:"DC",size:"45",  qty:1,currentDept:"sole",enteredAt:1774364164410,label:"SKDC45-L1005-160326"},
-      {id:"2123",model:"SK",color:"DC",size:"46",  qty:1,currentDept:"sole",enteredAt:1774364164410,label:"SKDC46-L1005-160326"},
-      {id:"2124",model:"PT",color:"BL",size:"41",  qty:1,currentDept:"stitch",enteredAt:1774364164410,label:"PTBL41-L1005-160326"},
-      {id:"2125",model:"PT",color:"BL",size:"42",  qty:1,currentDept:"finish",enteredAt:1774364164410,label:"PTBL42-L1005-160326"},
-      {id:"2126",model:"PT",color:"BL",size:"43",  qty:1,currentDept:"finish",enteredAt:1774364164410,label:"PTBL43-L1005-160326"},
-      {id:"2127",model:"PT",color:"WN",size:"40",  qty:1,currentDept:"finish",enteredAt:1774346164410, label:"PTWN40-L1005-160326"},
-      {id:"2128",model:"PT",color:"WN",size:"41",  qty:1,currentDept:"finish",enteredAt:1774346164410, label:"PTWN41-L1005-160326"},
+      {id:"2119",model:"SK",color:"DC",size:"38",  qty:1,currentDept:"sole",enteredAt:1774364822436,label:"SKDC38-L1005-160326"},
+      {id:"2120",model:"SK",color:"DC",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"SKDC38.5-L1005-160326"},
+      {id:"2121",model:"SK",color:"DC",size:"39",  qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SKDC39-L1005-160326"},
+      {id:"2122",model:"SK",color:"DC",size:"45",  qty:1,currentDept:"sole",enteredAt:1774364822436,label:"SKDC45-L1005-160326"},
+      {id:"2123",model:"SK",color:"DC",size:"46",  qty:1,currentDept:"sole",enteredAt:1774364822436,label:"SKDC46-L1005-160326"},
+      {id:"2124",model:"PT",color:"BL",size:"41",  qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"PTBL41-L1005-160326"},
+      {id:"2125",model:"PT",color:"BL",size:"42",  qty:1,currentDept:"finish",enteredAt:1774364822436,label:"PTBL42-L1005-160326"},
+      {id:"2126",model:"PT",color:"BL",size:"43",  qty:1,currentDept:"finish",enteredAt:1774364822436,label:"PTBL43-L1005-160326"},
+      {id:"2127",model:"PT",color:"WN",size:"40",  qty:1,currentDept:"finish",enteredAt:1774346822436, label:"PTWN40-L1005-160326"},
+      {id:"2128",model:"PT",color:"WN",size:"41",  qty:1,currentDept:"finish",enteredAt:1774346822436, label:"PTWN41-L1005-160326"},
     ],
   },
   {
-    id:"F1006", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774346164410,
+    id:"F1006", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774346822436,
     note:"PT DC37 · SP DG42 · SM DC38.5 · SK DC44 · SM BL42 · SK BL43 · MK WN44 · TN BL(หนังกลับ) 49.5 ข้างขวา",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 8คู่ (17/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 8คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 8คู่ (17/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 8คู่"},
     ],
     pairs:[
-      {id:"2129",model:"PT",color:"DC",size:"37",  qty:1,currentDept:"finish",enteredAt:1774364164410,label:"PTDC37-F1006-170326"},
-      {id:"2130",model:"SP",color:"DG",size:"42",  qty:1,currentDept:"stitch",enteredAt:1774364164410,label:"SPDG42-F1006-170326"},
-      {id:"2131",model:"SM",color:"DC",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774364164410,label:"SMDC38.5-F1006-170326"},
-      {id:"2132",model:"SK",color:"DC",size:"44",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SKDC44-F1006-170326"},
-      {id:"2133",model:"SM",color:"BL",size:"42",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SMBL42-F1006-170326"},
-      {id:"2134",model:"SK",color:"BL",size:"43",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SKBL43-F1006-170326"},
-      {id:"2135",model:"MK",color:"WN",size:"44",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"MKWN44-F1006-170326"},
-      {id:"2136",model:"TN",color:"BL",size:"49.5",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"TNBL49.5-F1006-170326"},
-      {id:"2137",model:"MK",color:"WN",size:"44",qty:1,currentDept:"sole",enteredAt:1774353364410,label:"MKWN44-F1006-210326"},
-      {id:"2138",model:"MK",color:"WN",size:"44",  qty:1,currentDept:"stitch",enteredAt:1774353364410,label:"MKWN44-F1006-210326"},
-      {id:"2139",model:"SM",color:"BL",size:"43",qty:1,currentDept:"finish", enteredAt:1774353364410,label:"SMBL43-F1006-170326"},
+      {id:"2129",model:"PT",color:"DC",size:"37",  qty:1,currentDept:"finish",enteredAt:1774364822436,label:"PTDC37-F1006-170326"},
+      {id:"2130",model:"SP",color:"DG",size:"42",  qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"SPDG42-F1006-170326"},
+      {id:"2131",model:"SM",color:"DC",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"SMDC38.5-F1006-170326"},
+      {id:"2132",model:"SK",color:"DC",size:"44",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SKDC44-F1006-170326"},
+      {id:"2133",model:"SM",color:"BL",size:"42",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SMBL42-F1006-170326"},
+      {id:"2134",model:"SK",color:"BL",size:"43",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SKBL43-F1006-170326"},
+      {id:"2135",model:"MK",color:"WN",size:"44",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"MKWN44-F1006-170326"},
+      {id:"2136",model:"TN",color:"BL",size:"49.5",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"TNBL49.5-F1006-170326"},
+      {id:"2137",model:"MK",color:"WN",size:"44",qty:1,currentDept:"sole",enteredAt:1774354022436,label:"MKWN44-F1006-210326"},
+      {id:"2138",model:"MK",color:"WN",size:"44",  qty:1,currentDept:"stitch",enteredAt:1774354022436,label:"MKWN44-F1006-210326"},
+      {id:"2139",model:"SM",color:"BL",size:"43",qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SMBL43-F1006-170326"},
     ],
   },
   {
-    id:"L1006", type:"L1", model:"KN", color:"CR", totalPairs:3, createdAt:1774346164410,
+    id:"L1006", type:"L1", model:"KN", color:"CR", totalPairs:3, createdAt:1774346822436,
     note:"KN CR39·41·42",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 3คู่ (17/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 3คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 3คู่ (17/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 3คู่"},
     ],
     pairs:[
-      {id:"2140",model:"KN",color:"CR",size:"39",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"KNCR39-L1006-170326"},
-      {id:"2141",model:"KN",color:"CR",size:"41",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"KNCR41-L1006-170326"},
-      {id:"2142",model:"KN",color:"CR",size:"42",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"KNCR42-L1006-170326"},
+      {id:"2140",model:"KN",color:"CR",size:"39",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"KNCR39-L1006-170326"},
+      {id:"2141",model:"KN",color:"CR",size:"41",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"KNCR41-L1006-170326"},
+      {id:"2142",model:"KN",color:"CR",size:"42",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"KNCR42-L1006-170326"},
     ],
   },
   {
-    id:"F1007", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:11, createdAt:1774346164410,
+    id:"F1007", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:11, createdAt:1774346822436,
     note:"SV DC35(พื้น4CM·เรทTony·รองPN) · KN BL43(รอตาไก่) · SM LB45 · MT DC45 · SM WN38 · SK BL46 · PT BL38 · SM CR45·42·37",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 10คู่ (18/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 10คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 10คู่ (18/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 10คู่"},
     ],
     pairs:[
-      {id:"2143",model:"SV",color:"DC",size:"35",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SVDC35-F1007-180326"},
-      {id:"2144",model:"KN",color:"BL",size:"43",qty:1,currentDept:"stitch",enteredAt:1774364164410,label:"KNBL43-F1007-180326"},
-      {id:"2145",model:"SM",color:"LB",size:"45",qty:1,currentDept:"finish", enteredAt:1774353364410,label:"SMLB45-F1007-180326"},
-      {id:"2146",model:"MT",color:"DC",size:"45",qty:1,currentDept:"finish",enteredAt:1774364164410,label:"MTDC45-F1007-180326"},
-      {id:"2147",model:"SM",color:"WN",size:"38",qty:1,currentDept:"sole", enteredAt:1774353364410,label:"SMWN38-F1007-180326"},
-      {id:"2148",model:"SK",color:"BL",size:"46",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SKBL46-F1007-180326"},
-      {id:"2149",model:"PT",color:"BL",size:"38",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"PTBL38-F1007-180326"},
-      {id:"2150",model:"SM",color:"CR",size:"45",qty:1,currentDept:"finish",enteredAt:1774364164410,label:"SMCR45-F1007-180326"},
-      {id:"2151",model:"SM",color:"CR",size:"42",qty:1,currentDept:"finish",enteredAt:1774364164410,label:"SMCR42-F1007-180326"},
-      {id:"2152",model:"SM",color:"DC",size:"37",qty:1,currentDept:"finish",enteredAt:1774364164410,label:"SMDC37-F1007-180326"},
-      {id:"2153",model:"PT",color:"BL",size:"39",qty:1,currentDept:"finish",enteredAt:1774353364410,label:"PTBL39-F1007-190326"},
+      {id:"2143",model:"SV",color:"DC",size:"35",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVDC35-F1007-180326"},
+      {id:"2144",model:"KN",color:"BL",size:"43",qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"KNBL43-F1007-180326"},
+      {id:"2145",model:"SM",color:"LB",size:"45",qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SMLB45-F1007-180326"},
+      {id:"2146",model:"MT",color:"DC",size:"45",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"MTDC45-F1007-180326"},
+      {id:"2147",model:"SM",color:"WN",size:"38",qty:1,currentDept:"sole", enteredAt:1774354022436,label:"SMWN38-F1007-180326"},
+      {id:"2148",model:"SK",color:"BL",size:"46",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SKBL46-F1007-180326"},
+      {id:"2149",model:"PT",color:"BL",size:"38",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PTBL38-F1007-180326"},
+      {id:"2150",model:"SM",color:"CR",size:"45",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMCR45-F1007-180326"},
+      {id:"2151",model:"SM",color:"CR",size:"42",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMCR42-F1007-180326"},
+      {id:"2152",model:"SM",color:"DC",size:"37",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMDC37-F1007-180326"},
+      {id:"2153",model:"PT",color:"BL",size:"39",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"PTBL39-F1007-190326"},
     ],
   },
   {
-    id:"F1008", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774346164410,
+    id:"F1008", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774346822436,
     note:"KN CR38.5(คุณนก) · SM LB38.5(คุณนก) · SM CR35(ฑิตษ์ฏยา) · SM CR46 · MK BL38.5(มาหะมุด) · PT BL43",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 6คู่ (19/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 6คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 6คู่ (19/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 6คู่"},
     ],
     pairs:[
-      {id:"2154",model:"KN",color:"CR",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774353364410,label:"KNCR38.5-F1008-190326"},
-      {id:"2155",model:"SM",color:"LB",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774353364410,label:"SMLB38.5-F1008-190326"},
-      {id:"2156",model:"SM",color:"CR",size:"35",  qty:1,currentDept:"stitch",enteredAt:1774364164410,label:"SMCR35-F1008-190326"},
-      {id:"2157",model:"SM",color:"CR",size:"46",  qty:1,currentDept:"stitch",enteredAt:1774364164410,label:"SMCR46-F1008-190326"},
-      {id:"2158",model:"MK",color:"BL",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774364164410,label:"MKBL38.5-F1008-190326"},
-      {id:"2159",model:"PT",color:"BL",size:"43",  qty:1,currentDept:"stitch",enteredAt:1774364164410,label:"PTBL43-F1008-190326"},
+      {id:"2154",model:"KN",color:"CR",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774354022436,label:"KNCR38.5-F1008-190326"},
+      {id:"2155",model:"SM",color:"LB",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774354022436,label:"SMLB38.5-F1008-190326"},
+      {id:"2156",model:"SM",color:"CR",size:"35",  qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"SMCR35-F1008-190326"},
+      {id:"2157",model:"SM",color:"CR",size:"46",  qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"SMCR46-F1008-190326"},
+      {id:"2158",model:"MK",color:"BL",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"MKBL38.5-F1008-190326"},
+      {id:"2159",model:"PT",color:"BL",size:"43",  qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"PTBL43-F1008-190326"},
     ],
   },
   {
-    id:"L1007", type:"L1", model:"SM", color:"หลายสี", totalPairs:5, createdAt:1774346164410,
+    id:"L1007", type:"L1", model:"SM", color:"หลายสี", totalPairs:5, createdAt:1774346822436,
     note:"SM CR40 · SM LB44 · SM BL42×2",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 5คู่ (19/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 5คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 5คู่ (19/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 5คู่"},
     ],
     pairs:[
-      {id:"2160",model:"SM",color:"CR",size:"40",qty:1,currentDept:"finish",enteredAt:1774364164410,label:"SMCR40-L1007-190326"},
-      {id:"2161",model:"SM",color:"LB",size:"44",qty:1,currentDept:"stitch",enteredAt:1774364164410,label:"SMLB44-L1007-190326"},
-      {id:"2162",model:"SM",color:"BL",size:"42",qty:2,currentDept:"finish",enteredAt:1774364164410,label:"SMBL42-L1007-190326"},
+      {id:"2160",model:"SM",color:"CR",size:"40",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMCR40-L1007-190326"},
+      {id:"2161",model:"SM",color:"LB",size:"44",qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"SMLB44-L1007-190326"},
+      {id:"2162",model:"SM",color:"BL",size:"42",qty:2,currentDept:"finish",enteredAt:1774364822436,label:"SMBL42-L1007-190326"},
     ],
   },
   {
-    id:"F1009", type:"F1", model:"SM", color:"DB", totalPairs:1, createdAt:1774346164410,
+    id:"F1009", type:"F1", model:"SM", color:"DB", totalPairs:1, createdAt:1774346822436,
     note:"SM DB42 กรมท่า (ลค.ออฟฟิศ)",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 1คู่ (20/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 1คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 1คู่ (20/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 1คู่"},
     ],
     pairs:[
-      {id:"2163",model:"SM",color:"DB",size:"42",qty:1,currentDept:"stitch",enteredAt:1774353364410,label:"SMDB42-F1009-200326"},
+      {id:"2163",model:"SM",color:"DB",size:"42",qty:1,currentDept:"stitch",enteredAt:1774354022436,label:"SMDB42-F1009-200326"},
     ],
   },
   {
-    id:"F1010", type:"F1", model:"WM/MK", color:"BL/WN", totalPairs:2, createdAt:1774346164410,
+    id:"F1010", type:"F1", model:"WM/MK", color:"BL/WN", totalPairs:2, createdAt:1774346822436,
     note:"WM หนังSV BL38.5 (คู่พิเศษ)",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 1คู่ (20/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 1คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 1คู่ (20/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 1คู่"},
     ],
     pairs:[
-      {id:"2164",model:"WM",color:"BL",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774353364410,label:"WMBL38.5-F1010-200326"},
-      {id:"2165",model:"MK",color:"WN",size:"40",  qty:1,currentDept:"sole",enteredAt:1774353364410,label:"MKWN40-F1010-220326"},
+      {id:"2164",model:"WM",color:"BL",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774354022436,label:"WMBL38.5-F1010-200326"},
+      {id:"2165",model:"MK",color:"WN",size:"40",  qty:1,currentDept:"sole",enteredAt:1774354022436,label:"MKWN40-F1010-220326"},
     ],
   },
   {
-    id:"L1008", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774346164410,
+    id:"L1008", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774346822436,
     note:"MT BL42·43·44 · SV DC41·42 · MK BL44·46",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 7คู่ (20/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 7คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 7คู่ (20/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 7คู่"},
     ],
     pairs:[
-      {id:"2166",model:"MT",color:"BL",size:"42",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"MTBL42-L1008-200326"},
-      {id:"2167",model:"MT",color:"BL",size:"43",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"MTBL43-L1008-200326"},
-      {id:"2168",model:"MT",color:"BL",size:"44",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"MTBL44-L1008-200326"},
-      {id:"2169",model:"SV",color:"DC",size:"41",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SVDC41-L1008-200326"},
-      {id:"2170",model:"SV",color:"DC",size:"42",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SVDC42-L1008-200326"},
-      {id:"2171",model:"MK",color:"BL",size:"44",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"MKBL44-L1008-200326"},
-      {id:"2172",model:"MK",color:"BL",size:"46",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"MKBL46-L1008-200326"},
-      {id:"2173",model:"SM",color:"CR",size:"40",qty:1,currentDept:"finish",enteredAt:1774353364410,label:"SMCR40-L1008-230326"},
+      {id:"2166",model:"MT",color:"BL",size:"42",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"MTBL42-L1008-200326"},
+      {id:"2167",model:"MT",color:"BL",size:"43",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"MTBL43-L1008-200326"},
+      {id:"2168",model:"MT",color:"BL",size:"44",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"MTBL44-L1008-200326"},
+      {id:"2169",model:"SV",color:"DC",size:"41",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVDC41-L1008-200326"},
+      {id:"2170",model:"SV",color:"DC",size:"42",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVDC42-L1008-200326"},
+      {id:"2171",model:"MK",color:"BL",size:"44",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"MKBL44-L1008-200326"},
+      {id:"2172",model:"MK",color:"BL",size:"46",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"MKBL46-L1008-200326"},
+      {id:"2173",model:"SM",color:"CR",size:"40",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SMCR40-L1008-230326"},
     ],
   },
   {
-    id:"L1009", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774346164410,
+    id:"L1009", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774346822436,
     note:"SV BL39·41·DC37 · PT DC37·38·38.5 · SM WN47·49 · PNL DB42·43",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 10คู่ (21/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 10คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 10คู่ (21/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 10คู่"},
     ],
     pairs:[
-      {id:"2174",model:"SV",color:"BL",size:"39",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SVBL39-L1009-210326"},
-      {id:"2175",model:"SV",color:"BL",size:"41",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SVBL41-L1009-210326"},
-      {id:"2176",model:"SV",color:"DC",size:"37",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SVDC37-L1009-210326"},
-      {id:"2177",model:"PT",color:"DC",size:"37",  qty:1,currentDept:"sole",enteredAt:1774364164410,label:"PTDC37-L1009-210326"},
-      {id:"2178",model:"PT",color:"DC",size:"38",  qty:1,currentDept:"sole",enteredAt:1774364164410,label:"PTDC38-L1009-210326"},
-      {id:"2179",model:"PT",color:"DC",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774364164410,label:"PTDC38.5-L1009-210326"},
-      {id:"2180",model:"SM",color:"WN",size:"47",  qty:1,currentDept:"sole",enteredAt:1774364164410,label:"SMWN47-L1009-210326"},
-      {id:"2181",model:"SM",color:"WN",size:"49",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SMWN49-L1009-210326"},
-      {id:"2182",model:"PNL",color:"DB",size:"42", qty:1,currentDept:"lace",enteredAt:1774364164410,label:"PNLDB42-L1009-210326"},
-      {id:"2183",model:"PNL",color:"DB",size:"43", qty:1,currentDept:"lace",enteredAt:1774364164410,label:"PNLDB43-L1009-210326"},
+      {id:"2174",model:"SV",color:"BL",size:"39",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVBL39-L1009-210326"},
+      {id:"2175",model:"SV",color:"BL",size:"41",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVBL41-L1009-210326"},
+      {id:"2176",model:"SV",color:"DC",size:"37",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVDC37-L1009-210326"},
+      {id:"2177",model:"PT",color:"DC",size:"37",  qty:1,currentDept:"sole",enteredAt:1774364822436,label:"PTDC37-L1009-210326"},
+      {id:"2178",model:"PT",color:"DC",size:"38",  qty:1,currentDept:"sole",enteredAt:1774364822436,label:"PTDC38-L1009-210326"},
+      {id:"2179",model:"PT",color:"DC",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"PTDC38.5-L1009-210326"},
+      {id:"2180",model:"SM",color:"WN",size:"47",  qty:1,currentDept:"sole",enteredAt:1774364822436,label:"SMWN47-L1009-210326"},
+      {id:"2181",model:"SM",color:"WN",size:"49",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SMWN49-L1009-210326"},
+      {id:"2182",model:"PNL",color:"DB",size:"42", qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLDB42-L1009-210326"},
+      {id:"2183",model:"PNL",color:"DB",size:"43", qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLDB43-L1009-210326"},
     ],
   },
   {
-    id:"L1009", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774346164410,
+    id:"L1009", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774346822436,
     note:"SV BL39·41 · SV DC37 · PT DC37·38·38.5 · SM WN47·49 · PNL DB42·43",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 10คู่ (21/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 10คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 10คู่ (21/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 10คู่"},
     ],
     pairs:[
-      {id:"2184",model:"SV",color:"BL",size:"39",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SVBL39-L1009-210326"},
-      {id:"2185",model:"SV",color:"BL",size:"41",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SVBL41-L1009-210326"},
-      {id:"2186",model:"SV",color:"DC",size:"37",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SVDC37-L1009-210326"},
-      {id:"2187",model:"PT",color:"DC",size:"37",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"PTDC37-L1009-210326"},
-      {id:"2188",model:"PT",color:"DC",size:"38",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"PTDC38-L1009-210326"},
-      {id:"2189",model:"PT",color:"DC",size:"38.5",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"PTDC38.5-L1009-210326"},
-      {id:"2190",model:"SM",color:"WN",size:"47",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SMWN47-L1009-210326"},
-      {id:"2191",model:"SM",color:"WN",size:"49",  qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SMWN49-L1009-210326"},
-      {id:"2192",model:"PNL",color:"DB",size:"42", qty:1,currentDept:"lace",enteredAt:1774364164410,label:"PNLDB42-L1009-210326"},
-      {id:"2193",model:"PNL",color:"DB",size:"43", qty:1,currentDept:"lace",enteredAt:1774364164410,label:"PNLDB43-L1009-210326"},
+      {id:"2184",model:"SV",color:"BL",size:"39",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVBL39-L1009-210326"},
+      {id:"2185",model:"SV",color:"BL",size:"41",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVBL41-L1009-210326"},
+      {id:"2186",model:"SV",color:"DC",size:"37",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVDC37-L1009-210326"},
+      {id:"2187",model:"PT",color:"DC",size:"37",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PTDC37-L1009-210326"},
+      {id:"2188",model:"PT",color:"DC",size:"38",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PTDC38-L1009-210326"},
+      {id:"2189",model:"PT",color:"DC",size:"38.5",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PTDC38.5-L1009-210326"},
+      {id:"2190",model:"SM",color:"WN",size:"47",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SMWN47-L1009-210326"},
+      {id:"2191",model:"SM",color:"WN",size:"49",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SMWN49-L1009-210326"},
+      {id:"2192",model:"PNL",color:"DB",size:"42", qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLDB42-L1009-210326"},
+      {id:"2193",model:"PNL",color:"DB",size:"43", qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLDB43-L1009-210326"},
     ],
   },
   {
-    id:"L1010", type:"L1", model:"KN", color:"หลายสี", totalPairs:5, createdAt:1774346164410,
+    id:"L1010", type:"L1", model:"KN", color:"หลายสี", totalPairs:5, createdAt:1774346822436,
     note:"KN BL41·42·43 · KN WN42·43",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 5คู่ (22/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 5คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 5คู่ (22/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 5คู่"},
     ],
     pairs:[
-      {id:"2194",model:"KN",color:"BL",size:"41",qty:1,currentDept:"sole",enteredAt:1774364164410,label:"KNBL41-L1010-220326"},
-      {id:"2195",model:"KN",color:"BL",size:"42",qty:1,currentDept:"sole",enteredAt:1774364164410,label:"KNBL42-L1010-220326"},
-      {id:"2196",model:"KN",color:"BL",size:"43",qty:1,currentDept:"sole",enteredAt:1774364164410,label:"KNBL43-L1010-220326"},
-      {id:"2197",model:"KN",color:"WN",size:"42",qty:1,currentDept:"sole",enteredAt:1774364164410,label:"KNWN42-L1010-220326"},
-      {id:"2198",model:"KN",color:"WN",size:"43",qty:1,currentDept:"sole",enteredAt:1774364164410,label:"KNWN43-L1010-220326"},
+      {id:"2194",model:"KN",color:"BL",size:"41",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"KNBL41-L1010-220326"},
+      {id:"2195",model:"KN",color:"BL",size:"42",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"KNBL42-L1010-220326"},
+      {id:"2196",model:"KN",color:"BL",size:"43",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"KNBL43-L1010-220326"},
+      {id:"2197",model:"KN",color:"WN",size:"42",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"KNWN42-L1010-220326"},
+      {id:"2198",model:"KN",color:"WN",size:"43",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"KNWN43-L1010-220326"},
     ],
   },
   {
-    id:"F1011", type:"F1", model:"PNL", color:"WN", totalPairs:1, createdAt:1774346164410,
+    id:"F1011", type:"F1", model:"PNL", color:"WN", totalPairs:1, createdAt:1774346822436,
     note:"PNL WN42",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 1คู่ (23/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 1คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 1คู่ (23/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 1คู่"},
     ],
     pairs:[
-      {id:"2199",model:"PNL",color:"WN",size:"42",qty:1,currentDept:"sole",enteredAt:1774353364410,label:"PNLWN42-F1011-230326"},
+      {id:"2199",model:"PNL",color:"WN",size:"42",qty:1,currentDept:"sole",enteredAt:1774354022436,label:"PNLWN42-F1011-230326"},
     ],
   },
   {
-    id:"L1011", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774346164410,
+    id:"L1011", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774346822436,
     note:"PNL CR45 · PNL PW43 · PNL DB43 · SM LB39·40 · NV OL39 · SM BL42×2",
     history:[
-      {dept:"pump",  status:"done", time:1774346164410,  endTime:1774353364410, note:"ช่างใหม่ 8คู่ (23/03)"},
-      {dept:"upper", status:"done", time:1774346164410,  endTime:1774364164410, note:"ช่างใหม่ 8คู่"},
+      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 8คู่ (23/03)"},
+      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 8คู่"},
     ],
     pairs:[
-      {id:"2200",model:"PNL",color:"CR",size:"45",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"PNLCR45-L1011-230326"},
-      {id:"2201",model:"PNL",color:"PW",size:"43",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"PNLPW43-L1011-230326"},
-      {id:"2202",model:"PNL",color:"DB",size:"43",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"PNLDB43-L1011-230326"},
-      {id:"2203",model:"SM", color:"LB",size:"39",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SMLB39-L1011-230326"},
-      {id:"2204",model:"SM", color:"LB",size:"40",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"SMLB40-L1011-230326"},
-      {id:"2205",model:"NV", color:"OL",size:"39",qty:1,currentDept:"lace",enteredAt:1774364164410,label:"NVOL39-L1011-230326"},
-      {id:"2206",model:"SM", color:"BL",size:"42",qty:2,currentDept:"lace",enteredAt:1774364164410,label:"SMBL42-L1011-230326"},
+      {id:"2200",model:"PNL",color:"CR",size:"45",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLCR45-L1011-230326"},
+      {id:"2201",model:"PNL",color:"PW",size:"43",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLPW43-L1011-230326"},
+      {id:"2202",model:"PNL",color:"DB",size:"43",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLDB43-L1011-230326"},
+      {id:"2203",model:"SM", color:"LB",size:"39",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SMLB39-L1011-230326"},
+      {id:"2204",model:"SM", color:"LB",size:"40",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SMLB40-L1011-230326"},
+      {id:"2205",model:"NV", color:"OL",size:"39",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"NVOL39-L1011-230326"},
+      {id:"2206",model:"SM", color:"BL",size:"42",qty:2,currentDept:"lace",enteredAt:1774364822436,label:"SMBL42-L1011-230326"},
     ],
   },
   {
-    id:"L1012", type:"L1", model:"SM", color:"BL", totalPairs:1, createdAt:1774346164410,
+    id:"L1012", type:"L1", model:"SM", color:"BL", totalPairs:1, createdAt:1774346822436,
     note:"SM BL49 (ล็อตใหม่)",
     history:[
-      {dept:"lace", status:"done", time:1774364164410, note:"ช่างมิน 23/03"},
+      {dept:"lace", status:"done", time:1774364822436, note:"ช่างมิน 23/03"},
     ],
     pairs:[
-      {id:"2207",model:"SM",color:"BL",size:"49",qty:1,currentDept:"sole",enteredAt:1774353364410,label:"SMBL49-L1012-230326"},
+      {id:"2207",model:"SM",color:"BL",size:"49",qty:1,currentDept:"sole",enteredAt:1774354022436,label:"SMBL49-L1012-230326"},
     ],
   },
 ];
 }
 
->
+
+/* ═══════════════ CONSTANTS ═══════════════ */
+const DEPARTMENTS = [
+  { id:"pump",    name:"แผนกปั้มงาน",        short:"ปั้ม",     icon:"⚙️", color:"#f59e0b", staff:["ช่างใหม่"] },
+  { id:"upper",   name:"แผนกหนังหน้า",        short:"หนังหน้า",icon:"✂️", color:"#10b981", staff:["ช่างใหม่"] },
+  { id:"lace",    name:"แผนกร้อยงาน",         short:"ร้อยงาน", icon:"🧵", color:"#3b82f6", staff:["ช่างมิน","ช่างทุน"] },
+  { id:"sole",    name:"แผนกพื้น",            short:"พื้น",    icon:"👟", color:"#8b5cf6", staff:["ช่างขัน","ช่างโซ่ะ"] },
+  { id:"stitch",  name:"แผนกเย็บพื้น",        short:"เย็บพื้น",icon:"🪡", color:"#ec4899", staff:[] },
+  { id:"finish",  name:"แผนกเก็บงาน",         short:"เก็บงาน", icon:"📦", color:"#06b6d4", staff:["ช่างซอรีน"] },
+  { id:"deliver", name:"จัดส่งงานเข้าออฟฟิศ", short:"จัดส่ง",  icon:"🚚", color:"#f97316", staff:[] },
+];
+const DEPT_ORDER = ["pump","upper","lace","sole","stitch","finish","deliver"];
+const ORDER_TYPES = {
+  F1:{ label:"งานด่วน",       desc:"พรีออเดอร์",        color:"#ef4444", bg:"#ef444414", icon:"⚡", prefix:"F1" },
+  L1:{ label:"ล็อตในโรงงาน", desc:"เติมสต็อก·ในโรงงาน", color:"#60a5fa", bg:"#60a5fa14", icon:"🏭", prefix:"L1" },
+  L2:{ label:"ล็อตช่างนอก",  desc:"เติมสต็อก·ช่างนอก",  color:"#a78bfa", bg:"#a78bfa14", icon:"🔧", prefix:"L2" },
+};
+const TYPE_PRIORITY = { F1:0, L1:1, L2:2 };
+const ALERT_HOURS   = 48;
+const MODELS = ["SP","SSP","SPH","SK","TN","SM","SV","MT","RB","NV","WM","RK","PT","KN","MK","JT","PNL","PNH","PNM","TM","FR","RN","หลายรุ่น"];
+const COLORS  = ["BL","WH","DB","CR","LB","TN","AQ","GY","FG","G","RW","WN","PW","OR","VR","BR","DC","YL","MN","DG","WH","OL","หลายสี"];
+const SIZES   = ["36","37","38","38.5","39","40","41","42","43","44","45","46","47","49","49.5"];
+const STAFF_COLOR = { "ช่างใหม่":"#f59e0b","ช่างมิน":"#3b82f6","ช่างทุน":"#a78bfa","ช่างขัน":"#8b5cf6","ช่างโซ่ะ":"#ec4899","ช่างซอรีน":"#06b6d4" };
+
+/* ═══════════════ HELPERS ═══════════════ */
+let _pid = 1000;
+const newPid = () => String(++_pid);
+
+const d = (daysAgo, hour=8) => Date.now() - daysAgo*86400000 - (8-hour)*3600000;
+const formatDate = (ts) => {
+  const dt = new Date(ts);
+  return dt.toLocaleDateString("th-TH",{day:"2-digit",month:"2-digit",year:"2-digit"})+" "+dt.toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit"});
+};
+const elapsedStr = (ms) => {
+  const m = Math.floor(ms/60000);
+  if (m<60) return `${m}น.`;
+  if (m<1440) return `${Math.floor(m/60)}ชม.${m%60}น.`;
+  return `${Math.floor(m/1440)}วัน ${Math.floor((m%1440)/60)}ชม.`;
+};
+const generateId = (type) => {
+  const n=new Date(), dd=String(n.getDate()).padStart(2,"0"), mm=String(n.getMonth()+1).padStart(2,"0"), yy=String(n.getFullYear()).slice(-2);
+  return `${ORDER_TYPES[type].prefix}-${dd}${mm}${yy}-${Math.random().toString(36).slice(2,5).toUpperCase()}`;
+};
+
+// Pair helpers
+const getPairsInDept = (order, deptId) => (order.pairs||[]).filter(p=>p.currentDept===deptId);
+const getTotalInDept   = (o,d) => getPairsInDept(o,d).reduce((s,p)=>s+(Number(p.qty)||0),0);
+const getOrderCurrentDepts = (order) => {
+  const depts = [...new Set((order.pairs||[]).filter(p=>p.currentDept!=="done").map(p=>p.currentDept))];
+  return depts.sort((a,b)=>DEPT_ORDER.indexOf(a)-DEPT_ORDER.indexOf(b));
+};
+const orderIsFullyDone = (order) => (order.pairs||[]).every(p=>p.currentDept==="done");
+const orderLeadDept = (order) => {
+  if (orderIsFullyDone(order)) return "done";
+  const depts = getOrderCurrentDepts(order);
+  return depts[0] || "done";
+};
+const isOrderInDept = (order, deptId) => {
+  if (deptId==="done") return orderIsFullyDone(order);
+  return getPairsInDept(order,deptId).length > 0;
+};
+const isOverdue = (order) => {
+  if (orderIsFullyDone(order)) return false;
+  return (order.pairs||[]).some(p=>{
+    if (p.currentDept==="done") return false;
+    return p.enteredAt && (Date.now()-p.enteredAt) > ALERT_HOURS*3600000;
+  });
+};
+const sortOrders = (list) => [...list].sort((a,b)=>(TYPE_PRIORITY[a.type]??9)-(TYPE_PRIORITY[b.type]??9));
+
+/* helper to build pairs from sizes dict, all starting at a dept */
+const mkPairs = (sizes, model, color, dept, enteredAt) =>
+  Object.entries(sizes).flatMap(([size,qty]) => [{id:newPid(), model, color, size, qty, currentDept:dept, enteredAt}]);
+
+/* ═══════════════ INITIAL DATA ═══════════════ */
+];
+
+/* ═══════════════ ADVANCE PAIRS LOGIC ═══════════════ */
+// advanceSomePairs: orderId, pairId, qtyToAdvance
+const advanceSomePairs = (orders, orderId, pairId, qtyToAdvance) => {
+  return orders.map(o => {
+    if (o.id !== orderId) return o;
+    const pair = o.pairs.find(p=>p.id===pairId);
+    if (!pair) return o;
+    const curIdx  = DEPT_ORDER.indexOf(pair.currentDept);
+    const nextDept = curIdx >= DEPT_ORDER.length-1 ? "done" : DEPT_ORDER[curIdx+1];
+    const qty      = Math.min(qtyToAdvance, Number(pair.qty)||1);
+    let newPairs   = o.pairs.filter(p=>p.id!==pairId);
+    if (pair.qty - qty > 0) {
+      newPairs.push({ ...pair, qty: pair.qty - qty });
+    }
+    // merge with existing same-SKU same-dest if any
+    const existing = newPairs.find(p=>p.model===pair.model&&p.color===pair.color&&p.size===pair.size&&p.currentDept===nextDept);
+    if (existing) {
+      newPairs = newPairs.map(p=>p.id===existing.id?{...p,qty:p.qty+qty}:p);
+    } else {
+      newPairs.push({ id:newPid(), model:pair.model, color:pair.color, size:pair.size, qty, currentDept:nextDept, enteredAt:Date.now(), label:pair.label });
+    }
+    return { ...o, pairs: newPairs };
+  });
+};
+
+/* ═══════════════ MAIN APP ═══════════════ */
+function App() {
+  const [orders, setOrders]               = useState(initialOrders);
+  const [activeView, setActiveView]       = useState("board");
+  const [activeDept, setActiveDept]       = useState("sole");
+  const [showNewOrder, setShowNewOrder]   = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [filterType, setFilterType]       = useState("all");
+  const [filterDept, setFilterDept]       = useState("all");
+  const [searchQuery, setSearchQuery]     = useState("");
+  const [showAlerts, setShowAlerts]       = useState(false);
+  const [tick, setTick]                   = useState(0);
+
+  useEffect(()=>{ const t=setInterval(()=>setTick(n=>n+1),60000); return ()=>clearInterval(t); },[]);
+
+  const [form, setForm]           = useState({type:"F1",model:"SP",color:"BL",sizes:{},note:""});
+  const [sizeInput, setSizeInput] = useState({size:"39",qty:""});
+
+  const addSizeToForm = () => {
+    if (!sizeInput.qty||parseInt(sizeInput.qty)<=0) return;
+    setForm(f=>({...f,sizes:{...f.sizes,[sizeInput.size]:parseInt(sizeInput.qty)}}));
+    setSizeInput(s=>({...s,qty:""}));
+  };
+  const totalFormPairs = Object.values(form.sizes).reduce((a,b)=>a+b,0);
+
+  const createOrder = () => {
+    if (!totalFormPairs) return;
+    const id = generateId(form.type);
+    const pairs = Object.entries(form.sizes).map(([size,qty])=>({
+      id:newPid(), model:form.model, color:form.color, size, qty, currentDept:"pump", enteredAt:Date.now()
+    }));
+    setOrders(o=>[{
+      id, type:form.type, model:form.model, color:form.color,
+      totalPairs:totalFormPairs, createdAt:Date.now(), note:form.note,
+      history:[{dept:"pump",status:"in_progress",time:Date.now(),note:""}],
+      pairs,
+    },...o]);
+    setForm({type:"F1",model:"SP",color:"BL",sizes:{},note:""});
+    setShowNewOrder(false);
+  };
+
+  const doAdvancePairs = (orderId, pairId, qty) => {
+    setOrders(prev => {
+      const updated = advanceSomePairs(prev, orderId, pairId, qty);
+      // sync selectedOrder ให้เห็นการเปลี่ยนแปลงทันที
+      const updatedOrder = updated.find(o => o.id === orderId);
+      if (updatedOrder) setSelectedOrder(updatedOrder);
+      return updated;
+    });
+  };
+
+  const setPairLabel = (orderId, pairId, label) => {
+    setOrders(prev => {
+      const updated = prev.map(o => {
+        if (o.id !== orderId) return o;
+        return { ...o, pairs: o.pairs.map(p => p.id===pairId ? {...p, label: label.trim()||undefined} : p) };
+      });
+      const updatedOrder = updated.find(o => o.id === orderId);
+      if (updatedOrder) setSelectedOrder(updatedOrder);
+      return updated;
+    });
+  };
+
+  const advanceAllInDept = (orderId, deptId) => {
+    setOrders(prev => {
+      let cur = prev;
+      const order = cur.find(o=>o.id===orderId);
+      if (!order) return cur;
+      const pairsHere = getPairsInDept(order, deptId);
+      pairsHere.forEach(p => { if(p.id) cur = advanceSomePairs(cur, orderId, p.id, Number(p.qty)||1); });
+      const updatedOrder = cur.find(o => o.id === orderId);
+      if (updatedOrder) setSelectedOrder(updatedOrder);
+      return cur;
+    });
+  };
+
+  // ส่งตรงจากเก็บงาน → เสร็จสิ้น (finish→deliver→done) 2 ขั้นตอนในคลิกเดียว
+  const finishOrderDirect = (orderId) => {
+    setOrders(prev => {
+      let cur = prev;
+      // Step 1: finish→deliver (ถ้ามี pair ที่ finish)
+      const o1 = cur.find(o=>o.id===orderId);
+      if (!o1) return cur;
+      if (getPairsInDept(o1,"finish").length > 0) {
+        [...getPairsInDept(o1,"finish")].forEach(p => {
+          cur = advanceSomePairs(cur, orderId, p.id, Number(p.qty)||1);
+        });
+      }
+      // Step 2: deliver→done (ทั้ง pair ที่เพิ่งมาจาก finish และที่อยู่ deliver อยู่แล้ว)
+      const o2 = cur.find(o=>o.id===orderId);
+      if (!o2) return cur;
+      [...getPairsInDept(o2,"deliver")].forEach(p => {
+        cur = advanceSomePairs(cur, orderId, p.id, Number(p.qty)||1);
+      });
+      setSelectedOrder(null);
+      return cur;
+    });
+  };
+
+  // search
+  const searchResults = useMemo(()=>{
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase().replace(/[-\s]/g,"");
+    return orders.filter(o=>{
+      const pairLabels = (o.pairs||[]).map(p=>p.label||"");
+      const blob = [o.id, o.model, o.color, o.note||"",
+        ...(o.pairs||[]).map(p=>`${p.model}${p.color}${p.size}`),
+        ...pairLabels,
+      ].join(" ").toLowerCase().replace(/[-\s]/g,"");
+      return blob.includes(q);
+    });
+  },[searchQuery,orders]);
+
+  const overdueOrders = useMemo(()=>orders.filter(o=>!orderIsFullyDone(o)&&isOverdue(o)),[orders,tick]);
+
+  const getDeptOrderList = (deptId) =>
+    sortOrders((filterType==="all"?orders:orders.filter(o=>o.type===filterType)).filter(o=>isOrderInDept(o,deptId)));
+
+  const doneOrders = orders.filter(orderIsFullyDone);
+  const counts = {
+    F1:orders.filter(o=>o.type==="F1"&&!orderIsFullyDone(o)).length,
+    L1:orders.filter(o=>o.type==="L1"&&!orderIsFullyDone(o)).length,
+    L2:orders.filter(o=>o.type==="L2"&&!orderIsFullyDone(o)).length,
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"#0c0c10",color:"#e4e0d8",fontFamily:"'Noto Sans Thai',sans-serif"}}>
+      {/* ── HEADER ── */}
+      <div style={{background:"#111118",borderBottom:"1px solid #1e1e2c",padding:"0 14px",
+        display:"flex",alignItems:"center",justifyContent:"space-between",height:60,position:"sticky",top:0,zIndex:100}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:34,height:34,borderRadius:8,background:"linear-gradient(135deg,#f59e0b,#d97706)",
+            display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>👟</div>
+          <div>
+            <div style={{fontWeight:800,fontSize:14}}>ระบบใบงานโรงงาน</div>
+            <div style={{display:"flex",gap:8}}>
+              {Object.entries(ORDER_TYPES).map(([k,t])=>(
+                <span key={k} style={{fontSize:10,color:t.color,fontWeight:700}}>{t.icon}{counts[k]} {k}</span>
+              ))}
+              <span style={{fontSize:10,color:"#22c55e",fontWeight:700}}>✅{doneOrders.length}</span>
+            </div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:5,alignItems:"center"}}>
+          {/* search */}
+          <div style={{position:"relative"}}>
+            <input value={searchQuery}
+              onChange={e=>{setSearchQuery(e.target.value);if(e.target.value)setActiveView("search");}}
+              placeholder="🔍 ค้นหา เช่น L2001, SKBL41..."
+              style={{padding:"5px 10px 5px 30px",borderRadius:7,border:"1px solid",width:200,
+                borderColor:searchQuery?"#3b82f6":"#1e1e2c",background:"#16161c",color:"#e4e0d8",fontSize:12,outline:"none"}}/>
+            <span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",fontSize:12,color:"#444"}}>🔍</span>
+            {searchQuery&&<button onClick={()=>{setSearchQuery("");setActiveView("board");}}
+              style={{position:"absolute",right:7,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:"#666",cursor:"pointer",fontSize:15}}>×</button>}
+          </div>
+          {/* alert bell */}
+          <button onClick={()=>setShowAlerts(true)} style={{
+            position:"relative",padding:"5px 9px",borderRadius:7,border:"1px solid",cursor:"pointer",
+            borderColor:overdueOrders.length?"#ef4444":"#1e1e2c",
+            background:overdueOrders.length?"#ef444414":"#16161c",
+            color:overdueOrders.length?"#ef4444":"#555",fontSize:15}}>
+            🔔{overdueOrders.length>0&&<span style={{position:"absolute",top:-4,right:-4,width:15,height:15,borderRadius:"50%",
+              background:"#ef4444",color:"#fff",fontSize:9,fontWeight:900,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              {overdueOrders.length}</span>}
+          </button>
+          {/* type filter */}
+          <div style={{display:"flex",background:"#18181f",borderRadius:8,padding:2,gap:1}}>
+            {[["all","ทั้งหมด","#888"],...Object.entries(ORDER_TYPES).map(([k,t])=>[k,`${t.icon}${k}`,t.color])].map(([v,label,color])=>(
+              <button key={v} onClick={()=>setFilterType(v)} style={{
+                padding:"3px 9px",borderRadius:6,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
+                background:filterType===v?color:"transparent",color:filterType===v?(v==="all"?"#111":"#fff"):"#555"}}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {[["board","📋บอร์ด"],["list","📃รายการ"],["staff","👷ช่าง"]].map(([v,label])=>(
+            <button key={v} onClick={()=>{setActiveView(v);setSearchQuery("");}}
+              style={{padding:"5px 10px",borderRadius:7,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,
+                background:activeView===v&&!searchQuery?"#f59e0b":"#1a1a22",
+                color:activeView===v&&!searchQuery?"#000":"#777"}}>
+              {label}
+            </button>
+          ))}
+          <button onClick={()=>setShowNewOrder(true)} style={{
+            padding:"5px 12px",borderRadius:7,border:"none",cursor:"pointer",
+            fontSize:12,fontWeight:800,background:"linear-gradient(135deg,#10b981,#059669)",color:"#fff"}}>
+            + สร้าง
+          </button>
+        </div>
+      </div>
+
+      {/* ── SEARCH ── */}
+      {activeView==="search"&&searchQuery&&(
+        <div style={{padding:16}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+            <div style={{width:4,height:20,borderRadius:2,background:"#3b82f6"}}/>
+            <h2 style={{margin:0,fontSize:16,fontWeight:800}}>ผลการค้นหา</h2>
+            <span style={{background:"#3b82f620",color:"#3b82f6",borderRadius:99,padding:"2px 8px",fontSize:11,fontWeight:700}}>
+              "{searchQuery}" · {searchResults.length} รายการ
+            </span>
+          </div>
+          {searchResults.length===0
+            ?<div style={{textAlign:"center",padding:50,color:"#2a2a38"}}><div style={{fontSize:32}}>🔍</div>ไม่พบข้อมูล</div>
+            :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:10}}>
+              {searchResults.map(o=><SearchCard key={o.id} order={o} onSelect={()=>setSelectedOrder(o)}/>)}
+            </div>
+          }
+        </div>
+      )}
+
+      {/* ── BOARD ── */}
+      {activeView==="board"&&(
+        <div style={{padding:16}}>
+          {/* dept tabs */}
+          <div style={{display:"flex",gap:6,marginBottom:16,overflowX:"auto",paddingBottom:4}}>
+            {DEPARTMENTS.map(dept=>{
+              const list = getDeptOrderList(dept.id);
+              const totalPairs = list.reduce((s,o)=>s+getTotalInDept(o,dept.id),0);
+              const over = list.some(o=>getPairsInDept(o,dept.id).some(p=>p.enteredAt&&(Date.now()-p.enteredAt)>ALERT_HOURS*3600000));
+              return (
+                <button key={dept.id} onClick={()=>setActiveDept(dept.id)} style={{
+                  flex:"0 0 auto",padding:"8px 12px",borderRadius:10,textAlign:"left",
+                  border:`2px solid ${activeDept===dept.id?dept.color:over?"#ef444444":"#1e1e2c"}`,
+                  background:activeDept===dept.id?dept.color+"16":"#16161c",cursor:"pointer",minWidth:100,position:"relative"}}>
+                  {over&&<span style={{position:"absolute",top:5,right:5,fontSize:12}}>⚠️</span>}
+                  <div style={{fontSize:15}}>{dept.icon}</div>
+                  <div style={{fontSize:11,fontWeight:700,color:activeDept===dept.id?dept.color:"#bbb",marginTop:1}}>{dept.short}</div>
+                  {dept.staff.length>0&&<div style={{fontSize:9,color:"#444",marginTop:1}}>{dept.staff.join("·")}</div>}
+                  <div style={{display:"flex",gap:3,marginTop:4,flexWrap:"wrap"}}>
+                    {["F1","L1","L2"].map(k=>{
+                      const cnt=list.filter(o=>o.type===k).length;
+                      return cnt>0&&<span key={k} style={{fontSize:9,fontWeight:800,color:ORDER_TYPES[k].color,background:ORDER_TYPES[k].color+"1e",padding:"1px 4px",borderRadius:99}}>{ORDER_TYPES[k].icon}{cnt}</span>
+                    })}
+                    {list.length===0&&<span style={{fontSize:9,color:"#2a2a38"}}>ว่าง</span>}
+                    {totalPairs>0&&<span style={{fontSize:9,color:"#555"}}>{totalPairs}คู่</span>}
+                  </div>
+                </button>
+              );
+            })}
+            <button onClick={()=>setActiveDept("done")} style={{
+              flex:"0 0 auto",padding:"8px 12px",borderRadius:10,textAlign:"left",minWidth:90,
+              border:`2px solid ${activeDept==="done"?"#22c55e":"#1e1e2c"}`,
+              background:activeDept==="done"?"#22c55e16":"#16161c",cursor:"pointer"}}>
+              <div style={{fontSize:15}}>✅</div>
+              <div style={{fontSize:11,fontWeight:700,color:activeDept==="done"?"#22c55e":"#bbb",marginTop:1}}>เสร็จ</div>
+              <div style={{fontSize:9,color:"#555",marginTop:4}}>{doneOrders.length}ล็อต</div>
+            </button>
+          </div>
+
+          {/* dept content */}
+          {activeDept!=="done"&&(()=>{
+            const dept = DEPARTMENTS.find(d=>d.id===activeDept);
+            const list = getDeptOrderList(activeDept);
+            return (
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                  <div style={{width:4,height:20,borderRadius:2,background:dept.color}}/>
+                  <h2 style={{margin:0,fontSize:16,fontWeight:800}}>{dept.name}</h2>
+                  {dept.staff.length>0&&<span style={{background:"#1e1e2c",color:"#888",borderRadius:99,padding:"2px 8px",fontSize:11}}>👷 {dept.staff.join(" · ")}</span>}
+                  <span style={{background:dept.color+"20",color:dept.color,borderRadius:99,padding:"2px 8px",fontSize:11,fontWeight:700}}>
+                    {list.length}ล็อต · {list.reduce((s,o)=>s+getTotalInDept(o,activeDept),0)}คู่
+                  </span>
+                </div>
+                {list.length===0
+                  ?<div style={{textAlign:"center",padding:50,color:"#2a2a38"}}><div style={{fontSize:32}}>📭</div>ไม่มีงาน</div>
+                  :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:10}}>
+                    {list.map(o=>(
+                      <OrderCard key={o.id} order={o} deptId={activeDept}
+                        onSelect={()=>setSelectedOrder(o)}
+                        onAdvanceAll={()=>advanceAllInDept(o.id,activeDept)}
+                        onFinishDirect={activeDept==="finish"||activeDept==="deliver"?()=>finishOrderDirect(o.id):null}/>
+                    ))}
+                  </div>
+                }
+              </div>
+            );
+          })()}
+          {activeDept==="done"&&(
+            <div>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <div style={{width:4,height:20,borderRadius:2,background:"#22c55e"}}/>
+                <h2 style={{margin:0,fontSize:16,fontWeight:800}}>เสร็จสิ้น</h2>
+              </div>
+              {doneOrders.length===0
+                ?<div style={{textAlign:"center",padding:50,color:"#2a2a38"}}><div style={{fontSize:32}}>📭</div>ยังไม่มี</div>
+                :<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:10}}>
+                  {doneOrders.map(o=><OrderCard key={o.id} order={o} deptId="done" onSelect={()=>setSelectedOrder(o)} isDone/>)}
+                </div>
+              }
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── LIST ── */}
+      {activeView==="list"&&(
+        <div style={{padding:16}}>
+          <div style={{display:"flex",gap:4,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
+            <span style={{fontSize:11,color:"#444"}}>แผนก:</span>
+            {[{id:"all",label:"ทั้งหมด",color:"#888"},...DEPARTMENTS.map(d=>({id:d.id,label:`${d.icon}${d.short}`,color:d.color})),{id:"done",label:"✅เสร็จ",color:"#22c55e"}].map(d=>(
+              <button key={d.id} onClick={()=>setFilterDept(d.id)} style={{
+                padding:"3px 8px",borderRadius:16,border:"1px solid",cursor:"pointer",fontSize:11,fontWeight:600,
+                borderColor:filterDept===d.id?d.color:"#1e1e2c",
+                background:filterDept===d.id?d.color+"20":"transparent",
+                color:filterDept===d.id?d.color:"#555"}}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <div style={{background:"#16161c",borderRadius:10,overflow:"hidden",border:"1px solid #1e1e2c"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <thead>
+                <tr style={{background:"#1a1a22",borderBottom:"1px solid #1e1e2c"}}>
+                  {["ประเภท","รหัส","SKU","ตำแหน่งปัจจุบัน","คู่รวม","สร้าง",""].map((h,i)=>(
+                    <th key={i} style={{padding:"8px 10px",textAlign:"left",fontWeight:700,color:"#444",fontSize:10,textTransform:"uppercase"}}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sortOrders(orders
+                  .filter(o=>filterDept==="all"?true:filterDept==="done"?orderIsFullyDone(o):isOrderInDept(o,filterDept))
+                  .filter(o=>filterType==="all"?true:o.type===filterType)
+                ).map((o,i)=>{
+                  const t=ORDER_TYPES[o.type];
+                  const curDepts=getOrderCurrentDepts(o);
+                  return (
+                    <tr key={o.id} onClick={()=>setSelectedOrder(o)}
+                      style={{borderBottom:"1px solid #16161e",cursor:"pointer",background:i%2?"#13131a":"transparent"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="#1e1e28"}
+                      onMouseLeave={e=>e.currentTarget.style.background=i%2?"#13131a":"transparent"}>
+                      <td style={{padding:"8px 10px"}}><span style={{background:t.bg,color:t.color,padding:"2px 7px",borderRadius:99,fontSize:11,fontWeight:800}}>{t.icon}{o.type}</span></td>
+                      <td style={{padding:"8px 10px",fontFamily:"monospace",fontWeight:800,color:t.color,fontSize:12}}>{o.id}</td>
+                      <td style={{padding:"8px 10px",color:"#888",fontSize:11,maxWidth:200}}>{o.note||"—"}</td>
+                      <td style={{padding:"8px 10px"}}>
+                        {orderIsFullyDone(o)
+                          ?<span style={{color:"#22c55e",fontSize:11,fontWeight:700}}>✅เสร็จ</span>
+                          :<div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+                            {curDepts.map(dId=>{
+                              const dept2=DEPARTMENTS.find(d=>d.id===dId);
+                              const cnt=getTotalInDept(o,dId);
+                              return <span key={dId} style={{background:dept2.color+"20",color:dept2.color,padding:"1px 6px",borderRadius:99,fontSize:10,fontWeight:700}}>{dept2.icon}{cnt}คู่</span>
+                            })}
+                          </div>
+                        }
+                      </td>
+                      <td style={{padding:"8px 10px",fontWeight:800}}>{o.totalPairs}</td>
+                      <td style={{padding:"8px 10px",color:"#444",fontSize:11}}>{formatDate(o.createdAt)}</td>
+                      <td style={{padding:"8px 10px"}}>
+                        <button onClick={e=>{e.stopPropagation();setSelectedOrder(o);}} style={{padding:"3px 8px",borderRadius:6,border:"1px solid #1e1e2c",cursor:"pointer",fontSize:11,background:"transparent",color:"#888"}}>รายละเอียด</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── STAFF VIEW ── */}
+      {activeView==="staff"&&<StaffView orders={orders} tick={tick} onSelectOrder={setSelectedOrder}/>}
+
+      {/* ── ALERT MODAL ── */}
+      {showAlerts&&(
+        <Modal onClose={()=>setShowAlerts(false)} title="🔔 การแจ้งเตือน">
+          {overdueOrders.length===0
+            ?<div style={{textAlign:"center",padding:40,color:"#22c55e"}}><div style={{fontSize:36}}>✅</div><div style={{fontWeight:700}}>ทุกล็อตอยู่ในกำหนด</div></div>
+            :overdueOrders.map(o=>{
+              const t=ORDER_TYPES[o.type];
+              const overduePairs=(o.pairs||[]).filter(p=>p.currentDept!=="done"&&p.enteredAt&&(Date.now()-p.enteredAt)>ALERT_HOURS*3600000);
+              return (
+                <div key={o.id} onClick={()=>{setSelectedOrder(o);setShowAlerts(false);}}
+                  style={{background:"#1a1a22",border:"1px solid #ef444433",borderRadius:10,padding:"12px 14px",marginBottom:10,cursor:"pointer"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div><span style={{background:t.bg,color:t.color,fontSize:10,fontWeight:800,padding:"1px 7px",borderRadius:99}}>{t.icon}{o.type}</span>
+                      <span style={{fontFamily:"monospace",fontWeight:800,color:t.color,fontSize:13,marginLeft:8}}>{o.id}</span></div>
+                    <span style={{fontSize:11,color:"#ef4444",fontWeight:700}}>⚠️{overduePairs.length}คู่เกินกำหนด</span>
+                  </div>
+                  <div style={{marginTop:8,display:"flex",flexWrap:"wrap",gap:4}}>
+                    {overduePairs.slice(0,8).map(p=>{
+                      const dept2=DEPARTMENTS.find(d=>d.id===p.currentDept);
+                      return <span key={p.id} style={{background:"#ef444415",color:"#ef4444",borderRadius:6,padding:"2px 6px",fontSize:10}}>
+                        {p.model}{p.color}{p.size}×{p.qty} @ {dept2?.short}
+                      </span>
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          }
+        </Modal>
+      )}
+
+      {/* ── NEW ORDER MODAL ── */}
+      {showNewOrder&&(
+        <Modal onClose={()=>setShowNewOrder(false)} title="➕ สร้างใบงานใหม่">
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:12,color:"#666",fontWeight:700,marginBottom:7}}>ประเภทใบงาน</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
+              {Object.entries(ORDER_TYPES).map(([key,t])=>(
+                <button key={key} onClick={()=>setForm(f=>({...f,type:key}))} style={{
+                  padding:"10px 8px",borderRadius:9,border:"2px solid",textAlign:"center",cursor:"pointer",
+                  borderColor:form.type===key?t.color:"#1e1e2c",background:form.type===key?t.bg:"#111116"}}>
+                  <div style={{fontSize:20}}>{t.icon}</div>
+                  <div style={{fontWeight:800,fontSize:12,color:form.type===key?t.color:"#aaa"}}>{key}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+            <label style={labelStyle}><span>รุ่น</span>
+              <select value={form.model} onChange={e=>setForm(f=>({...f,model:e.target.value}))} style={inputStyle}>
+                {MODELS.map(m=><option key={m}>{m}</option>)}
+              </select>
+            </label>
+            <label style={labelStyle}><span>สี</span>
+              <select value={form.color} onChange={e=>setForm(f=>({...f,color:e.target.value}))} style={inputStyle}>
+                {COLORS.map(c=><option key={c}>{c}</option>)}
+              </select>
+            </label>
+          </div>
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:12,color:"#666",fontWeight:700,marginBottom:6}}>ไซส์และจำนวน</div>
+            <div style={{display:"flex",gap:5,marginBottom:6}}>
+              <select value={sizeInput.size} onChange={e=>setSizeInput(s=>({...s,size:e.target.value}))} style={{...inputStyle,flex:1}}>
+                {SIZES.map(s=><option key={s}>{s}</option>)}
+              </select>
+              <input type="number" min="1" placeholder="จำนวน" value={sizeInput.qty}
+                onChange={e=>setSizeInput(s=>({...s,qty:e.target.value}))}
+                onKeyDown={e=>e.key==="Enter"&&addSizeToForm()}
+                style={{...inputStyle,flex:1}}/>
+              <button onClick={addSizeToForm} style={{padding:"7px 12px",borderRadius:7,border:"none",cursor:"pointer",fontWeight:800,background:"#3b82f6",color:"#fff"}}>+</button>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:4,minHeight:32,background:"#0e0e14",borderRadius:7,padding:6}}>
+              {Object.entries(form.sizes).length===0
+                ?<span style={{color:"#2a2a34",fontSize:11}}>ยังไม่มีไซส์</span>
+                :Object.entries(form.sizes).sort(([a],[b])=>parseFloat(a)-parseFloat(b)).map(([sz,qty])=>(
+                  <span key={sz} onClick={()=>{const s={...form.sizes};delete s[sz];setForm(f=>({...f,sizes:s}));}}
+                    style={{background:"#1e3a5f",color:"#60a5fa",padding:"2px 8px",borderRadius:99,fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                    {sz}×{qty} ✕
+                  </span>
+                ))
+              }
+            </div>
+          </div>
+          <label style={{...labelStyle,marginBottom:14}}>
+            <span>หมายเหตุ / SKU</span>
+            <input value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} style={inputStyle} placeholder="เช่น SP BL39 · SK DC41"/>
+          </label>
+          <div style={{display:"flex",gap:7,justifyContent:"flex-end"}}>
+            <button onClick={()=>setShowNewOrder(false)} style={{padding:"7px 14px",borderRadius:7,border:"1px solid #1e1e2c",cursor:"pointer",background:"transparent",color:"#666",fontSize:12}}>ยกเลิก</button>
+            <button onClick={createOrder} disabled={!totalFormPairs} style={{
+              padding:"7px 16px",borderRadius:7,border:"none",cursor:"pointer",fontWeight:800,fontSize:12,
+              background:totalFormPairs?`linear-gradient(135deg,${ORDER_TYPES[form.type].color},${ORDER_TYPES[form.type].color}cc)`:"#1a1a22",
+              color:totalFormPairs?"#fff":"#333"}}>
+              {ORDER_TYPES[form.type].icon} สร้าง
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── DETAIL MODAL ── */}
+      {selectedOrder&&(
+        <OrderDetailModal
+          order={selectedOrder}
+          onClose={()=>setSelectedOrder(null)}
+          onAdvancePairs={doAdvancePairs}
+          onAdvanceAll={advanceAllInDept}
+          onSetLabel={setPairLabel}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ══════════ ORDER CARD ══════════ */
+function OrderCard({ order, deptId, onSelect, onAdvanceAll, onFinishDirect, isDone }) {
+  const t = ORDER_TYPES[order.type];
+  const pairsHere  = deptId!=="done" ? getPairsInDept(order,deptId) : [];
+  const totalHere  = pairsHere.reduce((s,p)=>s+p.qty,0);
+  const curDepts   = getOrderCurrentDepts(order);
+  const dept       = DEPARTMENTS.find(d=>d.id===deptId);
+  const over       = pairsHere.some(p=>p.enteredAt&&(Date.now()-p.enteredAt)>ALERT_HOURS*3600000);
+  const nextDept   = deptId!=="done"?DEPARTMENTS.find(d=>d.id===DEPT_ORDER[DEPT_ORDER.indexOf(deptId)+1]):null;
+
+  return (
+    <div onClick={onSelect} style={{background:"#16161c",border:`1px solid ${over?"#ef444455":isDone?"#22c55e28":dept?dept.color+"28":"#1e1e2c"}`,
+      borderRadius:12,padding:14,cursor:"pointer",transition:"transform 0.1s",position:"relative",overflow:"hidden"}}
+      onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-1px)";}}
+      onMouseLeave={e=>{e.currentTarget.style.transform="";}}>
+      {/* stripe */}
+      <div style={{position:"absolute",top:0,left:0,right:0,height:over?4:3,background:
+        over?"linear-gradient(90deg,#ef4444,#f97316)":
+        order.type==="F1"?"linear-gradient(90deg,#ef4444,#f97316)":
+        order.type==="L1"?"linear-gradient(90deg,#3b82f6,#60a5fa)":
+                          "linear-gradient(90deg,#8b5cf6,#a78bfa)"}}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginTop:4,marginBottom:8}}>
+        <div>
+          <span style={{background:t.bg,color:t.color,fontSize:10,fontWeight:800,padding:"1px 7px",borderRadius:99}}>{t.icon}{order.type}</span>
+          {over&&<span style={{background:"#ef444420",color:"#ef4444",fontSize:10,fontWeight:800,padding:"1px 6px",borderRadius:99,marginLeft:4}}>⚠️เกินเวลา</span>}
+          <div style={{fontFamily:"monospace",fontSize:12,fontWeight:800,color:t.color,marginTop:3}}>{order.id}</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          {!isDone&&deptId!=="done"&&<div style={{fontSize:24,fontWeight:900,color:over?"#ef4444":dept?.color,lineHeight:1}}>{totalHere}</div>}
+          {isDone&&<div style={{fontSize:24,fontWeight:900,color:"#22c55e",lineHeight:1}}>{order.totalPairs}</div>}
+          <div style={{fontSize:10,color:"#3a3a4a"}}>คู่</div>
+        </div>
+      </div>
+
+      {/* pairs in this dept */}
+      {!isDone&&deptId!=="done"&&(
+        <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:8}}>
+          {pairsHere.sort((a,b)=>parseFloat(a.size)-parseFloat(b.size)).map(p=>{
+            const hrs = p.enteredAt?(Date.now()-p.enteredAt)/3600000:0;
+            const isLate = hrs > ALERT_HOURS;
+            return (
+              <span key={p.id} style={{background:isLate?"#ef444415":p.label?"#f59e0b10":"#0e0e14",
+                border:`1px solid ${isLate?"#ef444444":p.label?"#f59e0b44":"#1a1a22"}`,
+                padding:"2px 7px",borderRadius:6,fontSize:11,color:isLate?"#ef4444":p.label?"#f59e0b":"#aaa"}}>
+                {p.model!==order.model||p.color!==order.color?`${p.model}${p.color} `:""}
+                {p.size}{p.qty>1&&<span style={{color:"#f59e0b",fontWeight:700}}>×{p.qty}</span>}
+                {p.label&&<span style={{fontSize:9}}> 🏷</span>}
+                {isLate&&<span style={{fontSize:9}}> ⏰</span>}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* dept distribution bar */}
+      <div style={{display:"flex",gap:2,marginBottom:8}}>
+        {DEPT_ORDER.map(dId=>{
+          const cnt=getTotalInDept(order,dId);
+          const d2=DEPARTMENTS.find(d=>d.id===dId);
+          const doneCnt=(order.pairs||[]).filter(p=>p.currentDept==="done").length;
+          return (
+            <div key={dId} title={`${d2.short}: ${cnt}คู่`}
+              style={{flex:cnt||0,minWidth:cnt>0?6:2,height:4,borderRadius:2,
+                background:dId===deptId?d2.color:cnt>0?d2.color+"60":"#1e1e2c",transition:"all 0.3s"}}>
+            </div>
+          );
+        })}
+        {(order.pairs||[]).some(p=>p.currentDept==="done")&&
+          <div title="เสร็จ" style={{flex:(order.pairs||[]).filter(p=>p.currentDept==="done").reduce((s,p)=>s+p.qty,0),minWidth:6,height:4,borderRadius:2,background:"#22c55e"}}/>}
+      </div>
+
+      {/* other depts indicator */}
+      {!isDone&&curDepts.length>1&&(
+        <div style={{display:"flex",gap:3,flexWrap:"wrap",marginBottom:6}}>
+          {curDepts.filter(d=>d!==deptId).map(d=>{
+            const d2=DEPARTMENTS.find(x=>x.id===d);
+            return <span key={d} style={{background:d2.color+"15",color:d2.color,borderRadius:5,padding:"1px 5px",fontSize:9,fontWeight:700}}>
+              +{getTotalInDept(order,d)}คู่@{d2.short}
+            </span>
+          })}
+        </div>
+      )}
+
+      {order.note&&<div style={{fontSize:10,color:"#a8860a",background:"#1a1600",borderRadius:5,padding:"3px 6px",marginBottom:7,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📋{order.note}</div>}
+
+      {!isDone&&onAdvanceAll&&deptId!=="done"&&(
+        <div onClick={e=>e.stopPropagation()} style={{display:"flex",flexDirection:"column",gap:4}}>
+          <div style={{display:"flex",gap:4}}>
+            <button onClick={onSelect} style={{flex:1,padding:"5px",borderRadius:7,border:"1px solid #1e1e2c",cursor:"pointer",background:"transparent",color:"#888",fontSize:11}}>
+              🔲 เลือกบางคู่
+            </button>
+            <button onClick={onAdvanceAll} style={{flex:1,padding:"5px",borderRadius:7,border:"none",cursor:"pointer",fontSize:11,fontWeight:800,color:"#fff",
+              background:`linear-gradient(135deg,${dept?.color},${dept?.color}cc)`}}>
+              → {deptId==="finish"?"ไปจัดส่ง":deptId==="deliver"?"จบงาน":"ส่งทั้งหมด"} ({totalHere}คู่)
+            </button>
+          </div>
+          {onFinishDirect&&(
+            <button onClick={onFinishDirect} style={{width:"100%",padding:"6px",borderRadius:7,border:"none",cursor:"pointer",fontSize:12,fontWeight:800,color:"#fff",background:"linear-gradient(135deg,#22c55e,#16a34a)"}}>
+              ✅ ส่งออฟฟิศ + จบงาน ({totalHere}คู่)
+            </button>
+          )}
+        </div>
+      )}
+      {isDone&&<div style={{background:"#22c55e16",color:"#22c55e",borderRadius:7,padding:"5px",textAlign:"center",fontSize:11,fontWeight:700}}>✅ เสร็จสิ้น</div>}
+    </div>
+  );
+}
+
+/* ══════════ ORDER DETAIL MODAL ══════════ */
+function OrderDetailModal({ order, onClose, onAdvancePairs, onAdvanceAll, onSetLabel }) {
+  const t = ORDER_TYPES[order.type];
+  const [selected, setSelected] = useState({}); // { pairId: qty }
+
+  const toggleSelect = (pairId, maxQty) => {
+    setSelected(s=>{
+      if (s[pairId]) { const n={...s}; delete n[pairId]; return n; }
+      return {...s, [pairId]: maxQty};
+    });
+  };
+  const setQty = (pairId, qty, max) => {
+    const v = Math.max(1,Math.min(max,parseInt(qty)||1));
+    setSelected(s=>({...s,[pairId]:v}));
+  };
+
+  const activeByDept = DEPT_ORDER.reduce((acc,dId)=>{
+    const pairs = getPairsInDept(order,dId);
+    if (pairs.length>0) acc[dId]=pairs;
+    return acc;
+  },{});
+  const donePairs = (order.pairs||[]).filter(p=>p.currentDept==="done");
+
+  const selectedCount = Object.values(selected).reduce((s,q)=>s+q,0);
+
+  const handleAdvanceSelected = () => {
+    Object.entries(selected).forEach(([pairId,qty])=>onAdvancePairs(order.id,pairId,qty));
+    setSelected({});
+  };
+
+  return (
+    <Modal onClose={onClose} title={`📋 ${order.id}`}>
+      {/* header */}
+      <div style={{background:t.bg,border:`1px solid ${t.color}40`,borderRadius:10,padding:"8px 12px",
+        display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+        <span style={{fontSize:22}}>{t.icon}</span>
+        <div><div style={{fontWeight:900,color:t.color,fontSize:15}}>{order.type} — {t.label}</div>
+          <div style={{fontSize:11,color:t.color+"77"}}>{order.note}</div></div>
+        <div style={{marginLeft:"auto",textAlign:"right"}}>
+          <div style={{fontSize:26,fontWeight:900,color:t.color,lineHeight:1}}>{order.totalPairs}</div>
+          <div style={{fontSize:9,color:t.color+"88"}}>คู่รวม</div>
+        </div>
+      </div>
+
+      {/* selected action bar */}
+      {selectedCount>0&&(
+        <div style={{background:"#10b98114",border:"1px solid #10b98140",borderRadius:9,padding:"8px 12px",
+          marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <span style={{fontSize:12,color:"#10b981",fontWeight:700}}>เลือก {selectedCount} คู่</span>
+          <div style={{display:"flex",gap:6}}>
+            <button onClick={()=>setSelected({})} style={{padding:"4px 10px",borderRadius:6,border:"1px solid #1e1e2c",cursor:"pointer",background:"transparent",color:"#666",fontSize:11}}>ยกเลิก</button>
+            <button onClick={handleAdvanceSelected} style={{padding:"4px 12px",borderRadius:6,border:"none",cursor:"pointer",fontWeight:800,fontSize:11,background:"#10b981",color:"#fff"}}>
+              → ส่งต่อ {selectedCount} คู่
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* pairs by dept */}
+      {Object.entries(activeByDept).map(([deptId,pairs])=>{
+        const dept = DEPARTMENTS.find(d=>d.id===deptId);
+        const totalHere = pairs.reduce((s,p)=>s+p.qty,0);
+        return (
+          <div key={deptId} style={{marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,
+              borderLeft:`3px solid ${dept.color}`,paddingLeft:8}}>
+              <span>{dept.icon}</span>
+              <span style={{fontWeight:800,color:dept.color,fontSize:13}}>{dept.name}</span>
+              {dept.staff.length>0&&<span style={{fontSize:11,color:"#555"}}>· {dept.staff.join("·")}</span>}
+              <span style={{marginLeft:"auto",background:dept.color+"20",color:dept.color,borderRadius:99,padding:"1px 8px",fontSize:11,fontWeight:700}}>
+                {totalHere}คู่
+              </span>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {pairs.sort((a,b)=>parseFloat(a.size)-parseFloat(b.size)).map(p=>{
+                const hrs      = p.enteredAt?(Date.now()-p.enteredAt)/3600000:0;
+                const isLate   = hrs>ALERT_HOURS;
+                const isSel    = !!selected[p.id];
+                const selQty   = selected[p.id]||p.qty;
+                const nextIdx = DEPT_ORDER.indexOf(deptId); const nextDept = nextIdx < DEPT_ORDER.length-1 ? DEPARTMENTS.find(d=>d.id===DEPT_ORDER[nextIdx+1]) : null;
+                return (
+                  <div key={p.id}
+                    style={{background:isSel?"#10b98110":isLate?"#ef44440a":"#0e0e14",
+                      border:`1px solid ${isSel?"#10b981":isLate?"#ef444433":p.label?"#f59e0b44":"#1a1a22"}`,
+                      borderRadius:9,padding:"9px 11px",transition:"all 0.15s"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      {/* checkbox */}
+                      <div onClick={()=>toggleSelect(p.id,p.qty)}
+                        style={{width:20,height:20,borderRadius:5,border:`2px solid ${isSel?"#10b981":"#2a2a38"}`,
+                          background:isSel?"#10b981":"transparent",cursor:"pointer",flexShrink:0,
+                          display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#fff"}}>
+                        {isSel?"✓":""}
+                      </div>
+                      <div style={{flex:1}}>
+                        <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
+                          <span style={{fontWeight:800,fontSize:14}}>{p.model}</span>
+                          <span style={{fontSize:12,color:"#888"}}>{p.color}</span>
+                          <span style={{background:"#1e1e2c",padding:"1px 6px",borderRadius:5,fontSize:12,fontWeight:700}}>ไซส์ {p.size}</span>
+                          {isLate&&<span style={{background:"#ef444420",color:"#ef4444",fontSize:10,padding:"1px 5px",borderRadius:99}}>⚠️{Math.floor(hrs)}ชม.</span>}
+                        </div>
+                        {/* label display / edit */}
+                        <LabelField pairId={p.id} orderId={order.id} label={p.label||""} onSetLabel={onSetLabel}/>
+                        <div style={{fontSize:10,color:"#555",marginTop:3}}>
+                          {p.enteredAt?`เข้ามา ${formatDate(p.enteredAt)} · ${elapsedStr(Date.now()-p.enteredAt)}`:"-"}
+                        </div>
+                      </div>
+                      {/* qty control */}
+                      <div style={{display:"flex",alignItems:"center",gap:5}}>
+                        {isSel&&p.qty>1&&(
+                          <div style={{display:"flex",alignItems:"center",gap:3}}>
+                            <button onClick={e=>{e.stopPropagation();setQty(p.id,selQty-1,p.qty);}}
+                              style={{width:22,height:22,borderRadius:5,border:"1px solid #1e1e2c",cursor:"pointer",background:"transparent",color:"#888",fontSize:14,lineHeight:1}}>-</button>
+                            <input type="number" value={selQty} min={1} max={p.qty}
+                              onChange={e=>setQty(p.id,e.target.value,p.qty)}
+                              style={{width:32,textAlign:"center",background:"#13131a",border:"1px solid #1e1e2c",borderRadius:5,color:"#e4e0d8",fontSize:12,padding:"2px 0"}}/>
+                            <button onClick={e=>{e.stopPropagation();setQty(p.id,selQty+1,p.qty);}}
+                              style={{width:22,height:22,borderRadius:5,border:"1px solid #1e1e2c",cursor:"pointer",background:"transparent",color:"#888",fontSize:14,lineHeight:1}}>+</button>
+                          </div>
+                        )}
+                        <div style={{textAlign:"center",minWidth:36}}>
+                          <div style={{fontSize:20,fontWeight:900,color:isSel?"#10b981":dept.color,lineHeight:1}}>{isSel?selQty:p.qty}</div>
+                          <div style={{fontSize:9,color:"#444"}}>{isSel&&selQty<p.qty?`/${p.qty} `:""}คู่</div>
+                        </div>
+                      </div>
+                    </div>
+                    {/* advance with qty control */}
+                    {!isSel&&(
+                      <AdvanceRow
+                        pairQty={Number(p.qty)||1}
+                        deptColor={dept.color}
+                        nextShort={nextDept?.short || "จบงาน"}
+                        onAdvance={(qty)=>onAdvancePairs(order.id,p.id,qty)}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* done pairs */}
+      {donePairs.length>0&&(
+        <div style={{marginBottom:10}}>
+          <div style={{borderLeft:"3px solid #22c55e",paddingLeft:8,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+            <span style={{fontWeight:800,color:"#22c55e",fontSize:13}}>✅ เสร็จสิ้น</span>
+            <span style={{marginLeft:"auto",background:"#22c55e20",color:"#22c55e",borderRadius:99,padding:"1px 8px",fontSize:11,fontWeight:700}}>
+              {donePairs.reduce((s,p)=>s+p.qty,0)}คู่
+            </span>
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+            {donePairs.sort((a,b)=>parseFloat(a.size)-parseFloat(b.size)).map(p=>(
+              <span key={p.id} style={{background:"#22c55e14",color:"#22c55e",padding:"3px 8px",borderRadius:6,fontSize:11,fontWeight:600}}>
+                {p.model}{p.color} {p.size}{p.qty>1&&<span style={{fontWeight:800}}>×{p.qty}</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* history log */}
+      {order.history?.length>0&&(
+        <div style={{borderTop:"1px solid #1a1a22",paddingTop:10,marginTop:4}}>
+          <div style={{fontSize:10,color:"#444",fontWeight:700,textTransform:"uppercase",marginBottom:7}}>ประวัติแผนก</div>
+          {order.history.map((h,i)=>{
+            const dept2=DEPARTMENTS.find(d=>d.id===h.dept);
+            return (
+              <div key={i} style={{display:"flex",gap:8,marginBottom:5}}>
+                <div style={{width:16,height:16,borderRadius:"50%",background:"#22c55e20",border:"1px solid #22c55e44",
+                  display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"#22c55e",flexShrink:0,marginTop:1}}>✓</div>
+                <div style={{fontSize:11,color:"#555",lineHeight:1.5}}>
+                  <span style={{color:dept2?.color,fontWeight:700}}>{dept2?.name}</span>
+                  {h.note&&<span style={{color:"#888"}}> · {h.note}</span>}
+                  <div style={{fontSize:10,color:"#333"}}>{formatDate(h.time)}{h.endTime?` → ${formatDate(h.endTime)}`:""}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/* ══════════ SEARCH CARD ══════════ */
+function SearchCard({ order, onSelect }) {
+  const t = ORDER_TYPES[order.type];
+  const curDepts = getOrderCurrentDepts(order);
+  return (
+    <div onClick={onSelect} style={{background:"#16161c",border:`1px solid ${t.color}33`,borderRadius:12,padding:14,cursor:"pointer"}}
+      onMouseEnter={e=>e.currentTarget.style.boxShadow=`0 4px 16px ${t.color}1a`}
+      onMouseLeave={e=>e.currentTarget.style.boxShadow=""}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+        <div>
+          <span style={{background:t.bg,color:t.color,fontSize:10,fontWeight:800,padding:"1px 7px",borderRadius:99}}>{t.icon}{order.type}</span>
+          <div style={{fontFamily:"monospace",fontSize:13,fontWeight:800,color:t.color,marginTop:3}}>{order.id}</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:22,fontWeight:900,color:t.color,lineHeight:1}}>{order.totalPairs}</div>
+          <div style={{fontSize:9,color:"#3a3a4a"}}>คู่</div>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:7}}>
+        {orderIsFullyDone(order)
+          ?<span style={{background:"#22c55e20",color:"#22c55e",padding:"2px 7px",borderRadius:99,fontSize:11,fontWeight:700}}>✅ เสร็จสิ้น</span>
+          :curDepts.map(dId=>{
+            const d=DEPARTMENTS.find(x=>x.id===dId);
+            return <span key={dId} style={{background:d.color+"20",color:d.color,padding:"2px 7px",borderRadius:99,fontSize:11,fontWeight:700}}>{d.icon}{d.short} {getTotalInDept(order,dId)}คู่</span>
+          })
+        }
+      </div>
+      <div style={{display:"flex",gap:2,marginBottom:6}}>
+        {DEPT_ORDER.map(dId=>{
+          const cnt=getTotalInDept(order,dId);
+          const d=DEPARTMENTS.find(x=>x.id===dId);
+          return <div key={dId} style={{flex:Math.max(cnt,0.5),height:3,borderRadius:2,background:cnt>0?d.color+"80":"#1e1e2c"}}/>
+        })}
+      </div>
+      {order.note&&<div style={{fontSize:10,color:"#a8860a",background:"#1a1600",borderRadius:5,padding:"3px 7px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📋{order.note}</div>}
+    </div>
+  );
+}
+
+/* ══════════ STAFF VIEW ══════════ */
+function StaffView({ orders, tick, onSelectOrder }) {
+  const staffList = useMemo(()=>{
+    const names=new Set();
+    DEPARTMENTS.forEach(d=>d.staff.forEach(s=>names.add(s)));
+    return Array.from(names);
+  },[]);
+
+  return (
+    <div style={{padding:16}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
+        <div style={{width:4,height:20,borderRadius:2,background:"#f59e0b"}}/>
+        <h2 style={{margin:0,fontSize:16,fontWeight:800}}>งานแยกตามช่าง</h2>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:14}}>
+        {staffList.map(name=>{
+          const color = STAFF_COLOR[name]||"#888";
+          const dept  = DEPARTMENTS.find(d=>d.staff.includes(name));
+          // find pairs currently in staff's dept that are active
+          const activePairs = [];
+          if (dept) {
+            orders.forEach(o=>{
+              const pairs=getPairsInDept(o,dept.id);
+              if (pairs.length>0) activePairs.push({order:o,pairs});
+            });
+          }
+          const histWork = [];
+          orders.forEach(o=>{
+            (o.history||[]).forEach(h=>{
+              if (h.note&&h.note.includes(name.replace("ช่าง","ช่าง"))) {
+                histWork.push({order:o,dept:h.dept,note:h.note,time:h.time,endTime:h.endTime});
+              }
+            });
+          });
+          const totalActive = activePairs.reduce((s,{pairs})=>s+pairs.reduce((ss,p)=>ss+p.qty,0),0);
+          const overdueCount = activePairs.reduce((s,{pairs})=>s+pairs.filter(p=>p.enteredAt&&(Date.now()-p.enteredAt)>ALERT_HOURS*3600000).length,0);
+
+          return (
+            <div key={name} style={{background:"#16161c",border:`1px solid ${overdueCount?"#ef444455":color+"33"}`,borderRadius:12,overflow:"hidden"}}>
+              {/* header */}
+              <div style={{background:`linear-gradient(135deg,${color}20,${color}08)`,borderBottom:`1px solid ${color}22`,padding:"12px 14px",display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${color},${color}99)`,
+                  display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#fff",flexShrink:0}}>
+                  {name.replace("ช่าง","").slice(0,1)}
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:900,fontSize:14,color}}>{name}</div>
+                  {dept&&<div style={{fontSize:11,color:dept.color,marginTop:1}}>{dept.icon} {dept.name}</div>}
+                  <div style={{display:"flex",gap:5,marginTop:4}}>
+                    <span style={{background:"#1e1e2c",borderRadius:99,padding:"1px 7px",fontSize:10,color:"#777"}}>🔄 {totalActive}คู่กำลังทำ</span>
+                    {overdueCount>0&&<span style={{background:"#ef444420",borderRadius:99,padding:"1px 7px",fontSize:10,color:"#ef4444",fontWeight:700}}>⚠️{overdueCount}</span>}
+                  </div>
+                </div>
+              </div>
+              {/* work items */}
+              <div style={{padding:"10px 12px",maxHeight:360,overflowY:"auto"}}>
+                {activePairs.length===0&&histWork.length===0&&<div style={{textAlign:"center",padding:20,color:"#2a2a38",fontSize:12}}>ยังไม่มีงาน</div>}
+                {activePairs.map(({order,pairs})=>{
+                  const t=ORDER_TYPES[order.type];
+                  const total=pairs.reduce((s,p)=>s+p.qty,0);
+                  return (
+                    <div key={order.id} onClick={()=>onSelectOrder(order)}
+                      style={{background:"#0e0e14",border:"1px solid #1e1e2c",borderRadius:9,padding:"9px 11px",marginBottom:7,cursor:"pointer"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="#13131a"}
+                      onMouseLeave={e=>e.currentTarget.style.background="#0e0e14"}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                        <div>
+                          <span style={{background:t.bg,color:t.color,fontSize:10,fontWeight:800,padding:"1px 6px",borderRadius:99}}>{t.icon}{order.type}</span>
+                          <span style={{fontFamily:"monospace",fontWeight:800,color:t.color,fontSize:12,marginLeft:6}}>{order.id}</span>
+                        </div>
+                        <span style={{fontWeight:900,color,fontSize:16}}>{total}<span style={{fontSize:10,color:"#555",fontWeight:400}}> คู่</span></span>
+                      </div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:3}}>
+                        {pairs.sort((a,b)=>parseFloat(a.size)-parseFloat(b.size)).map(p=>{
+                          const late=p.enteredAt&&(Date.now()-p.enteredAt)>ALERT_HOURS*3600000;
+                          return <span key={p.id} style={{background:late?"#ef444415":"#1a1a22",color:late?"#ef4444":"#888",
+                            border:`1px solid ${late?"#ef444433":"#1e1e2c"}`,borderRadius:5,padding:"1px 6px",fontSize:10}}>
+                            {p.model}{p.color}{p.size}{p.qty>1&&`×${p.qty}`}
+                          </span>
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════ ADVANCE ROW ══════════ */
+function AdvanceRow({ pairQty, deptColor, nextShort, onAdvance }) {
+  const [qty, setQty] = useState(pairQty);
+  const max = pairQty;
+
+  const handleMinus = (e) => { e.stopPropagation(); setQty(q => Math.max(1, q-1)); };
+  const handlePlus  = (e) => { e.stopPropagation(); setQty(q => Math.min(max, q+1)); };
+  const handleSend  = (e) => { e.stopPropagation(); onAdvance(qty); };
+
+  return (
+    <div style={{marginTop:7,display:"flex",gap:5,alignItems:"center"}} onClick={e=>e.stopPropagation()}>
+      {/* qty selector - แสดงเฉพาะถ้ามีมากกว่า 1 คู่ */}
+      {max > 1 && (
+        <div style={{display:"flex",alignItems:"center",gap:3,background:"#0e0e14",borderRadius:6,padding:"2px 4px",border:"1px solid #1e1e2c"}}>
+          <button onClick={handleMinus}
+            style={{width:22,height:22,borderRadius:4,border:"none",cursor:"pointer",
+              background:qty>1?"#1e1e2c":"#0e0e14",color:qty>1?"#aaa":"#333",fontSize:14,lineHeight:1,fontWeight:800}}>
+            −
+          </button>
+          <span style={{minWidth:24,textAlign:"center",fontSize:13,fontWeight:800,color:"#e4e0d8"}}>{qty}</span>
+          <button onClick={handlePlus}
+            style={{width:22,height:22,borderRadius:4,border:"none",cursor:"pointer",
+              background:qty<max?"#1e1e2c":"#0e0e14",color:qty<max?"#aaa":"#333",fontSize:14,lineHeight:1,fontWeight:800}}>
+            +
+          </button>
+        </div>
+      )}
+      <button onClick={handleSend}
+        style={{flex:1,padding:"5px 8px",borderRadius:6,border:"none",cursor:"pointer",fontSize:11,fontWeight:800,color:"#fff",
+          background:`linear-gradient(135deg,${deptColor},${deptColor}cc)`}}>
+        → ส่ง {qty < max ? `${qty} จาก ${max}` : `ทั้ง ${max}`} คู่{nextShort ? ` ไป${nextShort}` : ""}
+      </button>
+    </div>
+  );
+}
+
+/* ══════════ LABEL FIELD ══════════ */
+function LabelField({ pairId, orderId, label, onSetLabel }) {
+  const [editing, setEditing] = useState(false);
+  const [val, setVal]         = useState(label);
+
+  const save = () => {
+    onSetLabel(orderId, pairId, val);
+    setEditing(false);
+  };
+
+  if (editing) return (
+    <div style={{display:"flex",gap:4,alignItems:"center",marginTop:4}} onClick={e=>e.stopPropagation()}>
+      <input autoFocus value={val} onChange={e=>setVal(e.target.value)}
+        onKeyDown={e=>{ if(e.key==="Enter")save(); if(e.key==="Escape")setEditing(false); }}
+        placeholder="เช่น KNBL39-F1002-120326"
+        style={{flex:1,padding:"3px 7px",borderRadius:6,border:"1px solid #f59e0b88",background:"#1a1400",
+          color:"#f59e0b",fontSize:11,outline:"none"}}/>
+      <button onClick={save} style={{padding:"3px 8px",borderRadius:5,border:"none",cursor:"pointer",
+        background:"#f59e0b",color:"#000",fontSize:11,fontWeight:800}}>บันทึก</button>
+      <button onClick={()=>setEditing(false)} style={{padding:"3px 7px",borderRadius:5,border:"1px solid #1e1e2c",
+        cursor:"pointer",background:"transparent",color:"#666",fontSize:11}}>✕</button>
+    </div>
+  );
+
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:5,marginTop:4}} onClick={e=>e.stopPropagation()}>
+      {label
+        ? <span style={{background:"#f59e0b14",color:"#f59e0b",borderRadius:5,padding:"2px 7px",fontSize:11,fontWeight:700,
+            border:"1px solid #f59e0b44",fontFamily:"monospace"}}>🏷 {label}</span>
+        : <span style={{color:"#2a2a38",fontSize:10}}>ยังไม่มีรหัสสลาก</span>
+      }
+      <button onClick={()=>{setVal(label);setEditing(true);}}
+        style={{padding:"1px 6px",borderRadius:4,border:"1px solid #1e1e2c",cursor:"pointer",
+          background:"transparent",color:"#555",fontSize:10}}>
+        {label?"✏️ แก้":"+ ใส่รหัส"}
+      </button>
+    </div>
+  );
+}
+
+/* ══════════ MODAL ══════════ */
+function Modal({ children, onClose, title }) {
+  return (
+    <div style={{position:"fixed",inset:0,background:"#000000d0",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={onClose}>
+      <div style={{background:"#16161c",borderRadius:14,padding:20,width:"100%",maxWidth:540,border:"1px solid #1e1e2c",maxHeight:"92vh",overflowY:"auto"}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <h3 style={{margin:0,fontSize:14,fontWeight:800}}>{title}</h3>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"#444",cursor:"pointer",fontSize:20,lineHeight:1}}>×</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+const labelStyle = {display:"flex",flexDirection:"column",gap:3,fontSize:12,color:"#666",fontWeight:600};
+const inputStyle = {padding:"7px 9px",borderRadius:7,border:"1px solid #1e1e2c",background:"#0e0e14",color:"#e4e0d8",fontSize:13,outline:"none",width:"100%",boxSizing:"border-box"};
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
