@@ -626,7 +626,7 @@ const advanceSomePairs = (orders, orderId, pairId, qtyToAdvance) => {
 
 /* ═══════════════ MAIN APP ═══════════════ */
 function App() {
-  const [orders, setOrders]               = useState(initialOrders);
+  const [orders, setOrders]               = useState(()=>{ const c=loadFromCache(); return c.length?c:getSeedData(); });
   const [activeView, setActiveView]       = useState("board");
   const [activeDept, setActiveDept]       = useState("sole");
   const [showNewOrder, setShowNewOrder]   = useState(false);
@@ -638,6 +638,21 @@ function App() {
   const [tick, setTick]                   = useState(0);
 
   useEffect(()=>{ const t=setInterval(()=>setTick(n=>n+1),60000); return ()=>clearInterval(t); },[]);
+
+  // sync with Google Sheets on load
+  useEffect(()=>{
+    if(!isApiOk()||!navigator.onLine) return;
+    (async()=>{
+      try{
+        const data = await apiGet();
+        if(data&&data.length>0){ setOrders(data); saveToCache(data); }
+        else { const seed=getSeedData(); saveToCache(seed); await apiSaveAll(seed); showToast("✅ sync ข้อมูลขึ้น Sheets แล้ว!"); }
+      }catch(e){ console.log("sync failed",e); }
+    })();
+  },[]);
+
+  // save to localStorage on every change
+  useEffect(()=>{ if(orders.length>0) saveToCache(orders); },[orders]);
 
   const [form, setForm]           = useState({type:"F1",model:"SP",color:"BL",sizes:{},note:""});
   const [sizeInput, setSizeInput] = useState({size:"39",qty:""});
