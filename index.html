@@ -24,10 +24,21 @@ input,select,button,textarea{font-family:inherit}
 </style>
 </head>
 <body>
-<div id="root"></div>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script>
+window.onerror = function(msg, src, line, col, err) {
+  document.getElementById("root").innerHTML = 
+    '<div style="padding:20px;color:#ef4444;background:#0c0c10;min-height:100vh">' +
+    '<h2>❌ Error</h2><p>' + msg + '</p><p>Line: ' + line + '</p></div>';
+  return false;
+};
+</script>
+<div id="root"><div id="loading-screen" style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;background:#0c0c10">
+  <div style="font-size:48px">👟</div>
+  <div style="color:#888;font-size:14px">กำลังโหลด...</div>
+</div></div>
+<script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
 <script type="text/babel" data-presets="react">
 const {useState,useMemo,useEffect,useRef} = React;
 
@@ -638,7 +649,7 @@ const advanceSomePairs = (orders, orderId, pairId, qtyToAdvance) => {
 
 /* ═══════════════ MAIN APP ═══════════════ */
 function App() {
-  const [orders, setOrders]               = useState(initialOrders);
+  const [orders, setOrders]               = useState(()=>{ const c=loadFromCache(); return c.length?c:getSeedData(); });
   const [activeView, setActiveView]       = useState("board");
   const [activeDept, setActiveDept]       = useState("sole");
   const [showNewOrder, setShowNewOrder]   = useState(false);
