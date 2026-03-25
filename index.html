@@ -2,523 +2,534 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <meta name="theme-color" content="#0c0c10">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ใบงานโรงงาน">
 <title>ระบบใบงานโรงงาน KHUNN</title>
 <style>
-* { box-sizing:border-box; margin:0; padding:0; }
-body { background:#0c0c10; color:#e4e0d8; font-family:'Noto Sans Thai','Sarabun',sans-serif; min-height:100vh; }
-input,select,button,textarea { font-family:inherit; }
-::-webkit-scrollbar { width:4px; height:4px; }
-::-webkit-scrollbar-track { background:#111; }
-::-webkit-scrollbar-thumb { background:#333; border-radius:2px; }
-.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:#1e1e2c; color:#e4e0d8; padding:10px 20px; border-radius:10px; font-size:13px; z-index:9999; border:1px solid #2a2a38; box-shadow:0 4px 20px #0008; animation:fadeIn 0.2s ease; }
-@keyframes fadeIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
-.sync-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:4px; }
-.sync-dot.online { background:#22c55e; }
-.sync-dot.offline { background:#f59e0b; }
-.sync-dot.syncing { background:#3b82f6; animation:pulse 1s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0c0c10;color:#e4e0d8;font-family:'Noto Sans Thai','Sarabun',sans-serif;min-height:100vh}
+input,select,button,textarea{font-family:inherit}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:#111}
+::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e2c;color:#e4e0d8;padding:10px 20px;border-radius:10px;font-size:13px;z-index:9999;border:1px solid #2a2a38;box-shadow:0 4px 20px #0008;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+.sync-dot.online{background:#22c55e}
+.sync-dot.offline{background:#f59e0b}
+.sync-dot.syncing{background:#3b82f6;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 </style>
 </head>
 <body>
-<div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;background:#0c0c10">
-  <div style="font-size:48px">👟</div>
-  <div style="color:#888;font-size:14px">กำลังโหลด...</div>
-</div></div>
-
-<script>
-const API_URL = "https://script.google.com/macros/s/AKfycbzJHI4zU_h3VgeguJsSz3jMTp_5FiiN8X7RMJ65J5qANs2NaknTQf4u3yKFpBq1-OBIgQ/exec";
-const CACHE_KEY = "factory_orders_v1";
-const SYNC_INTERVAL = 30000;
-const isApiOk = () => API_URL && !API_URL.includes("YOUR_APPS");
-const loadFromCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY))||[]; } catch { return []; } };
-const saveToCache = o => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(o)); } catch {} };
-const showToast = (msg, color) => { const el=document.createElement("div"); el.className="toast"; if(color) el.style.borderColor=color+"66"; el.textContent=msg; document.body.appendChild(el); setTimeout(()=>el.remove(),2500); };
-const apiGet = async () => { const r=await fetch(API_URL+"?action=all&ts="+Date.now()); const j=await r.json(); if(!j.ok) throw new Error(j.error); return j.data; };
-const apiSaveAll = async orders => { const r=await fetch(API_URL,{method:"POST",body:JSON.stringify({action:"saveAll",payload:{orders}})}); const j=await r.json(); if(!j.ok) throw new Error(j.error); return j.result; };
-// Make global for babel scope
-window._factory = {API_URL,CACHE_KEY,isApiOk,loadFromCache,saveToCache,showToast,apiGet,apiSaveAll};
-</script>
-
+<div id="root"></div>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
 <script type="text/babel" data-presets="react">
-const {useState,useMemo,useEffect,useCallback,useRef} = React;
-// Use globals from regular script
-const {isApiOk,loadFromCache,saveToCache,showToast,apiGet,apiSaveAll} = window._factory;
+const {useState,useMemo,useEffect,useRef} = React;
 
-/* ═══════ SEED DATA ═══════ */
+/* === CONFIG === */
+const API_URL   = "https://script.google.com/macros/s/AKfycbzJHI4zU_h3VgeguJsSz3jMTp_5FiiN8X7RMJ65J5qANs2NaknTQf4u3yKFpBq1-OBIgQ/exec";
+const CACHE_KEY = "khunn_factory_v2";
+
+/* === HELPERS === */
+const isApiOk       = () => API_URL && !API_URL.includes("YOUR_APPS");
+const loadFromCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY))||[]; } catch { return []; } };
+const saveToCache   = o  => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(o)); } catch {} };
+const showToast     = (msg, color="#22c55e") => {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.style.borderColor = color+"66";
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(), 2500);
+};
+const apiGet = async () => {
+  const r = await fetch(API_URL+"?action=all&ts="+Date.now());
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error||"api error");
+  return j.data;
+};
+const apiSaveAll = async (orders) => {
+  const r = await fetch(API_URL, {
+    method:"POST",
+    body: JSON.stringify({action:"saveAll", payload:{orders}})
+  });
+  const j = await r.json();
+  if(!j.ok) throw new Error(j.error||"save error");
+  return j.result;
+};
+
+/* === SEED DATA === */
 function getSeedData() {
   return [
   {
-    id:"F1001", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:14, createdAt:1774001222436,
+    id:"F1001", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:14, createdAt:1774076979970,
     note:"PNH BL37·40 · PNH WN40 · PNL PW40 · PNL CR40 · SK BL39·44 · SK DC41 · SK DC44×2 · SM WN42 · TN BL42 · TN DC43",
     history:[
-      {dept:"pump",  status:"done", time:1774001222436,  endTime:1774008422436, note:"ช่างใหม่ 12คู่"},
-      {dept:"upper", status:"done", time:1774001222436,  endTime:1774022822436, note:"ช่างใหม่ 12คู่"},
-      {dept:"lace",  status:"done", time:1774022822436, endTime:1774094822436, note:"ช่างมิน 12คู่"},
-      {dept:"sole",  status:"done", time:1774094822436, endTime:1774354022436, note:"ช่างขัน (SK DC41·DC44×2 เสร็จ 14/03)"},
+      {dept:"pump",  status:"done", time:1774076979970,  endTime:1774084179970, note:"ช่างใหม่ 12คู่"},
+      {dept:"upper", status:"done", time:1774076979970,  endTime:1774098579970, note:"ช่างใหม่ 12คู่"},
+      {dept:"lace",  status:"done", time:1774098579970, endTime:1774170579970, note:"ช่างมิน 12คู่"},
+      {dept:"sole",  status:"done", time:1774170579970, endTime:1774429779970, note:"ช่างขัน (SK DC41·DC44×2 เสร็จ 14/03)"},
     ],
     pairs:[
-      {id:"2001",model:"PNH",color:"BL",size:"37",  qty:1,currentDept:"sole",   enteredAt:1774094822436,label:"PNHBL37-F1001-100326"},
-      {id:"2002",model:"PNH",color:"BL",size:"40",  qty:1,currentDept:"sole",   enteredAt:1774094822436,label:"PNHBL40-F1001-100326"},
-      {id:"2003",model:"PNH",color:"WN",size:"40",  qty:1,currentDept:"sole",   enteredAt:1774094822436,label:"PNHWN40-F1001-100326"},
-      {id:"2004",model:"PNL",color:"PW",size:"40",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"PNLPW40-F1001-100326"},
-      {id:"2005",model:"PNL",color:"CR",size:"40",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"PNLCR40-F1001-100326"},
-      {id:"2006",model:"SK", color:"BL",size:"39",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SKBL39-F1001-100326"},
-      {id:"2007",model:"SK", color:"BL",size:"44",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SKBL44-F1001-100326"},
-      {id:"2008",model:"SK", color:"DC",size:"41",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SKDC41-F1001-100326"},
-      {id:"2009",model:"SK", color:"DC",size:"44",  qty:2,currentDept:"deliver", enteredAt:1774354022436,label:"SKDC44-F1001-100326"},
-      {id:"2010",model:"SM", color:"WN",size:"42",  qty:1,currentDept:"sole",   enteredAt:1774094822436,label:"SMWN42-F1001-100326"},
-      {id:"2011",model:"TN", color:"BL",size:"42",  qty:1,currentDept:"sole",   enteredAt:1774094822436,label:"TNBL42-F1001-100326"},
-      {id:"2012",model:"TN", color:"DC",size:"43",  qty:1,currentDept:"sole",   enteredAt:1774094822436,label:"TNDC43-F1001-100326"},
-      {id:"2013",model:"SK", color:"BL",size:"43",  qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKBL43-F1001-230326"},
+      {id:"2001",model:"PNH",color:"BL",size:"37",  qty:1,currentDept:"sole",   enteredAt:1774170579970,label:"PNHBL37-F1001-100326"},
+      {id:"2002",model:"PNH",color:"BL",size:"40",  qty:1,currentDept:"sole",   enteredAt:1774170579970,label:"PNHBL40-F1001-100326"},
+      {id:"2003",model:"PNH",color:"WN",size:"40",  qty:1,currentDept:"sole",   enteredAt:1774170579970,label:"PNHWN40-F1001-100326"},
+      {id:"2004",model:"PNL",color:"PW",size:"40",  qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"PNLPW40-F1001-100326"},
+      {id:"2005",model:"PNL",color:"CR",size:"40",  qty:1,currentDept:"finish", enteredAt:1774429779970,label:"PNLCR40-F1001-100326"},
+      {id:"2006",model:"SK", color:"BL",size:"39",  qty:1,currentDept:"finish", enteredAt:1774429779970,label:"SKBL39-F1001-100326"},
+      {id:"2007",model:"SK", color:"BL",size:"44",  qty:1,currentDept:"finish", enteredAt:1774429779970,label:"SKBL44-F1001-100326"},
+      {id:"2008",model:"SK", color:"DC",size:"41",  qty:1,currentDept:"finish", enteredAt:1774429779970,label:"SKDC41-F1001-100326"},
+      {id:"2009",model:"SK", color:"DC",size:"44",  qty:2,currentDept:"deliver", enteredAt:1774429779970,label:"SKDC44-F1001-100326"},
+      {id:"2010",model:"SM", color:"WN",size:"42",  qty:1,currentDept:"sole",   enteredAt:1774170579970,label:"SMWN42-F1001-100326"},
+      {id:"2011",model:"TN", color:"BL",size:"42",  qty:1,currentDept:"sole",   enteredAt:1774170579970,label:"TNBL42-F1001-100326"},
+      {id:"2012",model:"TN", color:"DC",size:"43",  qty:1,currentDept:"sole",   enteredAt:1774170579970,label:"TNDC43-F1001-100326"},
+      {id:"2013",model:"SK", color:"BL",size:"43",  qty:1,currentDept:"finish",enteredAt:1774429779970,label:"SKBL43-F1001-230326"},
     ],
   },
   {
-    id:"F1002", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:9, createdAt:1774087622436,
+    id:"F1002", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:9, createdAt:1774163379970,
     note:"SP LB38.5 · KN BL39 · PNH DB39 · SK BL41 · SP FG44 · SK DC41 · TN BL42·43",
     history:[
-      {dept:"pump",  status:"done", time:1774087622436,  endTime:1774094822436, note:"ช่างใหม่ 8คู่"},
-      {dept:"upper", status:"done", time:1774087622436,  endTime:1774105622436, note:"ช่างใหม่ 8คู่"},
-      {dept:"lace",  status:"done", time:1774105622436, endTime:1774354022436, note:"ช่างมิน (12/03) + SK DC41·TN BL42·43 (14/03)"},
+      {dept:"pump",  status:"done", time:1774163379970,  endTime:1774170579970, note:"ช่างใหม่ 8คู่"},
+      {dept:"upper", status:"done", time:1774163379970,  endTime:1774181379970, note:"ช่างใหม่ 8คู่"},
+      {dept:"lace",  status:"done", time:1774181379970, endTime:1774429779970, note:"ช่างมิน (12/03) + SK DC41·TN BL42·43 (14/03)"},
     ],
     pairs:[
-      {id:"2014",model:"KN", color:"BL",size:"39",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"KNBL39-F1002-110326"},
-      {id:"2015",model:"SP", color:"LB",size:"38.5",qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"SPLB38.5-F1002-110326"},
-      {id:"2016",model:"SK", color:"DC",size:"41",  qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKDC41-F1002-110326"},
-      {id:"2017",model:"TN", color:"BL",size:"42",  qty:1,currentDept:"stitch", enteredAt:1774354022436,label:"TNBL42-F1002-110326"},
-      {id:"2018",model:"TN", color:"BL",size:"43",  qty:1,currentDept:"stitch", enteredAt:1774354022436,label:"TNBL43-F1002-110326"},
-      {id:"2019",model:"PNH",color:"DB",size:"39",  qty:1,currentDept:"deliver",   enteredAt:1774105622436,label:"PNHDB39-F1002-110326"},
-      {id:"2020",model:"PNH",color:"DC",size:"39",  qty:1,currentDept:"stitch",enteredAt:1774354022436},
-      {id:"2021",model:"SK", color:"BL",size:"41",  qty:1,currentDept:"finish",   enteredAt:1774105622436,label:"SKBL41-F1002-110326"},
-      {id:"2022",model:"SP", color:"FG",size:"44",  qty:1,currentDept:"deliver", enteredAt:1774354022436,label:"SPFG44-F1002-110326"},
+      {id:"2014",model:"KN", color:"BL",size:"39",  qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"KNBL39-F1002-110326"},
+      {id:"2015",model:"SP", color:"LB",size:"38.5",qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"SPLB38.5-F1002-110326"},
+      {id:"2016",model:"SK", color:"DC",size:"41",  qty:1,currentDept:"finish",enteredAt:1774429779970,label:"SKDC41-F1002-110326"},
+      {id:"2017",model:"TN", color:"BL",size:"42",  qty:1,currentDept:"stitch", enteredAt:1774429779970,label:"TNBL42-F1002-110326"},
+      {id:"2018",model:"TN", color:"BL",size:"43",  qty:1,currentDept:"stitch", enteredAt:1774429779970,label:"TNBL43-F1002-110326"},
+      {id:"2019",model:"PNH",color:"DB",size:"39",  qty:1,currentDept:"deliver",   enteredAt:1774181379970,label:"PNHDB39-F1002-110326"},
+      {id:"2020",model:"PNH",color:"DC",size:"39",  qty:1,currentDept:"stitch",enteredAt:1774429779970},
+      {id:"2021",model:"SK", color:"BL",size:"41",  qty:1,currentDept:"finish",   enteredAt:1774181379970,label:"SKBL41-F1002-110326"},
+      {id:"2022",model:"SP", color:"FG",size:"44",  qty:1,currentDept:"deliver", enteredAt:1774429779970,label:"SPFG44-F1002-110326"},
     ],
   },
   {
-    id:"L1001", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:13, createdAt:1773914822436,
+    id:"L1001", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:13, createdAt:1773990579970,
     note:"WM BL42 · SM DB38.5·39·40 · SSP DC42×2",
     history:[
-      {dept:"pump",  status:"done", time:1773914822436,  endTime:1773922022436, note:"ช่างใหม่ 6คู่"},
-      {dept:"upper", status:"done", time:1773922022436, endTime:1773936422436, note:"ช่างใหม่ 6คู่"},
-      {dept:"lace",  status:"done", time:1773936422436, endTime:1774015622436, note:"ช่างมิน 4คู่ · ช่างทุน 2คู่"},
+      {dept:"pump",  status:"done", time:1773990579970,  endTime:1773997779970, note:"ช่างใหม่ 6คู่"},
+      {dept:"upper", status:"done", time:1773997779970, endTime:1774012179970, note:"ช่างใหม่ 6คู่"},
+      {dept:"lace",  status:"done", time:1774012179970, endTime:1774091379970, note:"ช่างมิน 4คู่ · ช่างทุน 2คู่"},
     ],
     pairs:[
-      {id:"2023",model:"WM", color:"BL",size:"42",  qty:1,currentDept:"sole",   enteredAt:1774019222436},
-      {id:"2024",model:"SM", color:"DB",size:"38.5",qty:1,currentDept:"deliver",enteredAt:1774019222436},
-      {id:"2025",model:"SM", color:"DB",size:"39",  qty:1,currentDept:"sole",   enteredAt:1774019222436},
-      {id:"2026",model:"SM", color:"DB",size:"40",  qty:1,currentDept:"sole",   enteredAt:1774019222436},
-      {id:"2027",model:"SSP",color:"DC",size:"42",  qty:2,currentDept:"sole",   enteredAt:1774019222436},
-      {id:"2028",model:"NV", color:"WH",size:"41",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"NVWH41-L1001-090326"},
-      {id:"2029",model:"NV", color:"WH",size:"42",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"NVWH42-L1001-090326"},
-      {id:"2030",model:"NV", color:"WH",size:"43",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"NVWH43-L1001-090326"},
-      {id:"2031",model:"NV", color:"WH",size:"44",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"NVWH44-L1001-090326"},
-      {id:"2032",model:"SSP",color:"DG",size:"40",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"SSPDG40-L1001-090326"},
-      {id:"2033",model:"SSP",color:"DG",size:"42",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"SSPDG42-L1001-090326"},
-      {id:"2034",model:"SSP",color:"DG",size:"43",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"SSPDG43-L1001-090326"},
+      {id:"2023",model:"WM", color:"BL",size:"42",  qty:1,currentDept:"sole",   enteredAt:1774094979970},
+      {id:"2024",model:"SM", color:"DB",size:"38.5",qty:1,currentDept:"deliver",enteredAt:1774094979970},
+      {id:"2025",model:"SM", color:"DB",size:"39",  qty:1,currentDept:"sole",   enteredAt:1774094979970},
+      {id:"2026",model:"SM", color:"DB",size:"40",  qty:1,currentDept:"sole",   enteredAt:1774094979970},
+      {id:"2027",model:"SSP",color:"DC",size:"42",  qty:2,currentDept:"sole",   enteredAt:1774094979970},
+      {id:"2028",model:"NV", color:"WH",size:"41",  qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"NVWH41-L1001-090326"},
+      {id:"2029",model:"NV", color:"WH",size:"42",  qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"NVWH42-L1001-090326"},
+      {id:"2030",model:"NV", color:"WH",size:"43",  qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"NVWH43-L1001-090326"},
+      {id:"2031",model:"NV", color:"WH",size:"44",  qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"NVWH44-L1001-090326"},
+      {id:"2032",model:"SSP",color:"DG",size:"40",  qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"SSPDG40-L1001-090326"},
+      {id:"2033",model:"SSP",color:"DG",size:"42",  qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"SSPDG42-L1001-090326"},
+      {id:"2034",model:"SSP",color:"DG",size:"43",  qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"SSPDG43-L1001-090326"},
     ],
   },
   {
-    id:"L1002", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:16, createdAt:1774001222436,
+    id:"L1002", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:16, createdAt:1774076979970,
     note:"SP FG38·38.5·40·42×2·43·44 · SSP DG38·38.5·44·45·46 · TN DC41·42·43·44 · PNH BL40",
     history:[
-      {dept:"pump",  status:"done", time:1774001222436,  endTime:1774008422436, note:"ช่างใหม่ 4คู่ (09/03)"},
-      {dept:"pump",  status:"done", time:1774087622436,  endTime:1774094822436, note:"ช่างใหม่ 12คู่ (12/03)"},
-      {dept:"upper", status:"done", time:1774094822436, endTime:1774105622436, note:"ช่างใหม่ 16คู่"},
-      {dept:"lace",  status:"done", time:1774105622436, endTime:1774354022436, note:"ช่างมิน 10คู่ (12/03) + SSP DG45·46 (14/03)"},
+      {dept:"pump",  status:"done", time:1774076979970,  endTime:1774084179970, note:"ช่างใหม่ 4คู่ (09/03)"},
+      {dept:"pump",  status:"done", time:1774163379970,  endTime:1774170579970, note:"ช่างใหม่ 12คู่ (12/03)"},
+      {dept:"upper", status:"done", time:1774170579970, endTime:1774181379970, note:"ช่างใหม่ 16คู่"},
+      {dept:"lace",  status:"done", time:1774181379970, endTime:1774429779970, note:"ช่างมิน 10คู่ (12/03) + SSP DG45·46 (14/03)"},
     ],
     pairs:[
-      {id:"2035",model:"TN", color:"DC",size:"41",  qty:1,currentDept:"finish",enteredAt:1774354022436,label:"TNDC41-L1002-120326"},
-      {id:"2036",model:"TN", color:"DC",size:"42",  qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"TNDC42-L1002-120326"},
-      {id:"2037",model:"SP", color:"FG",size:"40",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SPFG40-L1002-120326"},
-      {id:"2038",model:"SP", color:"FG",size:"38",  qty:1,currentDept:"sole",  enteredAt:1774289222436,label:"SPFG38-L1002-120326"},
-      {id:"2039",model:"SSP",color:"DG",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774289222436,label:"SSPDG44-L1002-120326"},
-      {id:"2040",model:"SSP",color:"DG",size:"38.5",qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SSPDG38.5-L1002-120326"},
-      {id:"2041",model:"SSP",color:"DG",size:"38",  qty:1,currentDept:"sole",  enteredAt:1774289222436,label:"SSPDG38-L1002-120326"},
-      {id:"2042",model:"PNH",color:"BL",size:"40",  qty:1,currentDept:"deliver",  enteredAt:1774289222436,label:"PNHBL40-L1002-120326"},
-      {id:"2043",model:"TN", color:"DC",size:"43",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"TNDC43-L1002-120326"},
-      {id:"2044",model:"TN", color:"DC",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774289222436,label:"TNDC44-L1002-120326"},
-      {id:"2045",model:"SSP",color:"DG",size:"45",  qty:1,currentDept:"stitch", enteredAt:1774354022436,label:"SSPDG45-L1002-120326"},
-      {id:"2046",model:"SSP",color:"DG",size:"46",  qty:1,currentDept:"stitch", enteredAt:1774354022436,label:"SSPDG46-L1002-120326"},
-      {id:"2047",model:"SP", color:"FG",size:"38.5",qty:1,currentDept:"lace",  enteredAt:1774105622436,label:"SPFG38.5-L1002-120326"},
-      {id:"2048",model:"SP", color:"FG",size:"42",  qty:2,currentDept:"finish",  enteredAt:1774105622436,label:"SPFG42-L1002-120326"},
-      {id:"2049",model:"SP", color:"FG",size:"43",  qty:1,currentDept:"finish",  enteredAt:1774105622436,label:"SPFG43-L1002-120326"},
-      {id:"2050",model:"SP", color:"FG",size:"44",  qty:1,currentDept:"lace",  enteredAt:1774105622436,label:"SPFG44-L1002-120326"},
+      {id:"2035",model:"TN", color:"DC",size:"41",  qty:1,currentDept:"finish",enteredAt:1774429779970,label:"TNDC41-L1002-120326"},
+      {id:"2036",model:"TN", color:"DC",size:"42",  qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"TNDC42-L1002-120326"},
+      {id:"2037",model:"SP", color:"FG",size:"40",  qty:1,currentDept:"finish", enteredAt:1774429779970,label:"SPFG40-L1002-120326"},
+      {id:"2038",model:"SP", color:"FG",size:"38",  qty:1,currentDept:"sole",  enteredAt:1774364979970,label:"SPFG38-L1002-120326"},
+      {id:"2039",model:"SSP",color:"DG",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774364979970,label:"SSPDG44-L1002-120326"},
+      {id:"2040",model:"SSP",color:"DG",size:"38.5",qty:1,currentDept:"finish", enteredAt:1774429779970,label:"SSPDG38.5-L1002-120326"},
+      {id:"2041",model:"SSP",color:"DG",size:"38",  qty:1,currentDept:"sole",  enteredAt:1774364979970,label:"SSPDG38-L1002-120326"},
+      {id:"2042",model:"PNH",color:"BL",size:"40",  qty:1,currentDept:"deliver",  enteredAt:1774364979970,label:"PNHBL40-L1002-120326"},
+      {id:"2043",model:"TN", color:"DC",size:"43",  qty:1,currentDept:"finish", enteredAt:1774429779970,label:"TNDC43-L1002-120326"},
+      {id:"2044",model:"TN", color:"DC",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774364979970,label:"TNDC44-L1002-120326"},
+      {id:"2045",model:"SSP",color:"DG",size:"45",  qty:1,currentDept:"stitch", enteredAt:1774429779970,label:"SSPDG45-L1002-120326"},
+      {id:"2046",model:"SSP",color:"DG",size:"46",  qty:1,currentDept:"stitch", enteredAt:1774429779970,label:"SSPDG46-L1002-120326"},
+      {id:"2047",model:"SP", color:"FG",size:"38.5",qty:1,currentDept:"lace",  enteredAt:1774181379970,label:"SPFG38.5-L1002-120326"},
+      {id:"2048",model:"SP", color:"FG",size:"42",  qty:2,currentDept:"finish",  enteredAt:1774181379970,label:"SPFG42-L1002-120326"},
+      {id:"2049",model:"SP", color:"FG",size:"43",  qty:1,currentDept:"finish",  enteredAt:1774181379970,label:"SPFG43-L1002-120326"},
+      {id:"2050",model:"SP", color:"FG",size:"44",  qty:1,currentDept:"lace",  enteredAt:1774181379970,label:"SPFG44-L1002-120326"},
     ],
   },
   {
-    id:"L2001", type:"L2", model:"SK", color:"BL", totalPairs:61, createdAt:1773914822436,
+    id:"L2001", type:"L2", model:"SK", color:"BL", totalPairs:61, createdAt:1773990579970,
     note:"SK BL 36·37·38×4·39×3·40×2·41×4·42×5·43×5·44×2·45×2·46×2 + SP BL40·41·44·46 + SP FG42",
     history:[
-      {dept:"pump",  status:"done", time:1773914822436,  endTime:1773922022436, note:"ช่างใหม่ 12คู่ (09/03)"},
-      {dept:"upper", status:"done", time:1773922022436, endTime:1773936422436, note:"ช่างใหม่ 12คู่"},
-      {dept:"lace",  status:"done", time:1773936422436, endTime:1774260422436,  note:"ช่างมิน BL41×1 + ช่างทุน 17คู่ (09/03) + BL43×4·BL41×1·BL38×1 (13/03) + BL37×1·BL40×2·BL38×3 (14/03)"},
-      {dept:"sole",  status:"done", time:1774260422436,  endTime:1774354022436, note:"ช่างโซ่ะ BL41·45 (12/03) + ช่างขัน BL38·BL41·BL42×3·BL43×4 (14/03)"},
+      {dept:"pump",  status:"done", time:1773990579970,  endTime:1773997779970, note:"ช่างใหม่ 12คู่ (09/03)"},
+      {dept:"upper", status:"done", time:1773997779970, endTime:1774012179970, note:"ช่างใหม่ 12คู่"},
+      {dept:"lace",  status:"done", time:1774012179970, endTime:1774336179970,  note:"ช่างมิน BL41×1 + ช่างทุน 17คู่ (09/03) + BL43×4·BL41×1·BL38×1 (13/03) + BL37×1·BL40×2·BL38×3 (14/03)"},
+      {dept:"sole",  status:"done", time:1774336179970,  endTime:1774429779970, note:"ช่างโซ่ะ BL41·45 (12/03) + ช่างขัน BL38·BL41·BL42×3·BL43×4 (14/03)"},
     ],
     pairs:[
-      {id:"2051",model:"SK",color:"BL",size:"36",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKBL36-L2001-090326"},
-      {id:"2052",model:"SK",color:"BL",size:"39",qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"SKBL39a-L2001-090326"},
-      {id:"2053",model:"SK",color:"BL",size:"39",qty:2,currentDept:"finish",enteredAt:1774354022436,label:"SKBL39b-L2001-090326"},
-      {id:"2054",model:"SK",color:"BL",size:"41",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKBL41a-L2001-090326"},
-      {id:"2055",model:"SK",color:"BL",size:"44",qty:3,currentDept:"deliver",enteredAt:1774354022436,label:"SKBL44-L2001-090326"},
-      {id:"2056",model:"SK",color:"BL",size:"38",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKBL38a-L2001-090326"},
-      {id:"2057",model:"SK",color:"BL",size:"41",qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"SKBL41b-L2001-090326"},
-      {id:"2058",model:"SK",color:"BL",size:"42",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKBL42x1-L2001-090326"},
-      {id:"2059",model:"SK",color:"BL",size:"42",qty:2,currentDept:"finish",  enteredAt:1774260422436, label:"SKBL42x2b-L2001-090326"},
-      {id:"2060",model:"SK",color:"BL",size:"43",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SKBL43x4-L2001-090326"},
-      {id:"2061",model:"SK",color:"BL",size:"43",qty:3,currentDept:"finish",enteredAt:1774354022436,label:"SKBL43x3-L2001-090326"},
-      {id:"2062",model:"SK",color:"BL",size:"37",qty:1,currentDept:"sole",  enteredAt:1774346822436, label:"SKBL37-L2001-090326"},
-      {id:"2063",model:"SK",color:"BL",size:"38",qty:3,currentDept:"sole",  enteredAt:1774346822436, label:"SKBL38b-L2001-090326"},
-      {id:"2064",model:"SK",color:"BL",size:"40",qty:2,currentDept:"finish",enteredAt:1774354022436,label:"SKBL40-L2001-090326"},
-      {id:"2065",model:"SK",color:"BL",size:"41",qty:2,currentDept:"sole",  enteredAt:1774260422436, label:"SKBL41c-L2001-090326"},
-      {id:"2066",model:"SK",color:"BL",size:"42",qty:2,currentDept:"finish",  enteredAt:1774260422436, label:"SKBL42x2-L2001-090326"},
-      {id:"2067",model:"SK",color:"BL",size:"43",qty:1,currentDept:"finish",  enteredAt:1774260422436, label:"SKBL43-L2001-090326"},
-      {id:"2068",model:"SK",color:"BL",size:"45",qty:2,currentDept:"sole",  enteredAt:1774260422436, label:"SKBL45-L2001-090326"},
-      {id:"2069",model:"SK",color:"BL",size:"46",qty:2,currentDept:"sole",  enteredAt:1774260422436, label:"SKBL46-L2001-090326"},
-      {id:"2070",model:"SP",color:"BL",size:"40",  qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SPBL40-L2001-160326"},
-      {id:"2071",model:"SP",color:"FG",size:"42",  qty:2,currentDept:"finish",enteredAt:1774354022436,label:"SPFG42-L2001-160326"},
-      {id:"2072",model:"SP",color:"BL",size:"40",  qty:2,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL40x2-L2001-160326"},
-      {id:"2073",model:"SP",color:"BL",size:"41",  qty:2,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL41-L2001-160326"},
-      {id:"2074",model:"SP",color:"BL",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL44-L2001-160326"},
-      {id:"2075",model:"SP",color:"BL",size:"46",  qty:2,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL46-L2001-160326"},
-      {id:"2076",model:"SP",color:"BL",size:"45",  qty:1,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL45b-L2001-180326"},
-      {id:"2077",model:"SP",color:"BL",size:"43",  qty:4,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL43x5-L2001-180326"},
-      {id:"2078",model:"SP",color:"BL",size:"43",  qty:1,currentDept:"finish",  enteredAt:1774354022436,label:"SPBL43x1a-L2001-200326"},
-      {id:"2079",model:"SP",color:"BL",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL44c-L2001-190326"},
-      {id:"2080",model:"SP",color:"BL",size:"43",  qty:2,currentDept:"stitch",  enteredAt:1774354022436,label:"SPBL43x2-L2001-190326"},
-      {id:"2081",model:"SP",color:"BL",size:"41",  qty:2,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL41-L2001-190326"},
-      {id:"2082",model:"SP",color:"BL",size:"40",  qty:2,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL40x2-L2001-190326"},
-      {id:"2083",model:"SSP",color:"BL",size:"44", qty:1,currentDept:"stitch",  enteredAt:1774354022436,label:"SSPBL44-L2001-180326"},
-      {id:"2084",model:"SSP",color:"BL",size:"42", qty:2,currentDept:"stitch",  enteredAt:1774354022436,label:"SSPBL42x2-L2001-190326"},
-      {id:"2085",model:"TN",color:"BL",size:"42",  qty:1,currentDept:"finish",enteredAt:1774354022436,label:"TNBL42-L2001-180326"},
-      {id:"2086",model:"TN",color:"BL",size:"43",  qty:1,currentDept:"finish",enteredAt:1774354022436,label:"TNBL43-L2001-180326"},
-      {id:"2087",model:"SP",color:"BL",size:"45",  qty:1,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL45-L2001-170326"},
-      {id:"2088",model:"SP",color:"BL",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774354022436,label:"SPBL44b-L2001-170326"},
-      {id:"2089",model:"SP",color:"BL",size:"42",  qty:2,currentDept:"finish",enteredAt:1774354022436,label:"SPBL42x2a-L2001-200326"},
-      {id:"2090",model:"SP",color:"BL",size:"42",  qty:3,currentDept:"stitch",  enteredAt:1774354022436,label:"SPBL42x3-L2001-170326"},
+      {id:"2051",model:"SK",color:"BL",size:"36",qty:1,currentDept:"finish",enteredAt:1774429779970,label:"SKBL36-L2001-090326"},
+      {id:"2052",model:"SK",color:"BL",size:"39",qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"SKBL39a-L2001-090326"},
+      {id:"2053",model:"SK",color:"BL",size:"39",qty:2,currentDept:"finish",enteredAt:1774429779970,label:"SKBL39b-L2001-090326"},
+      {id:"2054",model:"SK",color:"BL",size:"41",qty:1,currentDept:"finish",enteredAt:1774429779970,label:"SKBL41a-L2001-090326"},
+      {id:"2055",model:"SK",color:"BL",size:"44",qty:3,currentDept:"deliver",enteredAt:1774429779970,label:"SKBL44-L2001-090326"},
+      {id:"2056",model:"SK",color:"BL",size:"38",qty:1,currentDept:"finish",enteredAt:1774429779970,label:"SKBL38a-L2001-090326"},
+      {id:"2057",model:"SK",color:"BL",size:"41",qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"SKBL41b-L2001-090326"},
+      {id:"2058",model:"SK",color:"BL",size:"42",qty:1,currentDept:"finish",enteredAt:1774429779970,label:"SKBL42x1-L2001-090326"},
+      {id:"2059",model:"SK",color:"BL",size:"42",qty:2,currentDept:"finish",  enteredAt:1774336179970, label:"SKBL42x2b-L2001-090326"},
+      {id:"2060",model:"SK",color:"BL",size:"43",qty:1,currentDept:"finish",enteredAt:1774429779970,label:"SKBL43x4-L2001-090326"},
+      {id:"2061",model:"SK",color:"BL",size:"43",qty:3,currentDept:"finish",enteredAt:1774429779970,label:"SKBL43x3-L2001-090326"},
+      {id:"2062",model:"SK",color:"BL",size:"37",qty:1,currentDept:"sole",  enteredAt:1774422579970, label:"SKBL37-L2001-090326"},
+      {id:"2063",model:"SK",color:"BL",size:"38",qty:3,currentDept:"sole",  enteredAt:1774422579970, label:"SKBL38b-L2001-090326"},
+      {id:"2064",model:"SK",color:"BL",size:"40",qty:2,currentDept:"finish",enteredAt:1774429779970,label:"SKBL40-L2001-090326"},
+      {id:"2065",model:"SK",color:"BL",size:"41",qty:2,currentDept:"sole",  enteredAt:1774336179970, label:"SKBL41c-L2001-090326"},
+      {id:"2066",model:"SK",color:"BL",size:"42",qty:2,currentDept:"finish",  enteredAt:1774336179970, label:"SKBL42x2-L2001-090326"},
+      {id:"2067",model:"SK",color:"BL",size:"43",qty:1,currentDept:"finish",  enteredAt:1774336179970, label:"SKBL43-L2001-090326"},
+      {id:"2068",model:"SK",color:"BL",size:"45",qty:2,currentDept:"sole",  enteredAt:1774336179970, label:"SKBL45-L2001-090326"},
+      {id:"2069",model:"SK",color:"BL",size:"46",qty:2,currentDept:"sole",  enteredAt:1774336179970, label:"SKBL46-L2001-090326"},
+      {id:"2070",model:"SP",color:"BL",size:"40",  qty:1,currentDept:"finish",enteredAt:1774429779970,label:"SPBL40-L2001-160326"},
+      {id:"2071",model:"SP",color:"FG",size:"42",  qty:2,currentDept:"finish",enteredAt:1774429779970,label:"SPFG42-L2001-160326"},
+      {id:"2072",model:"SP",color:"BL",size:"40",  qty:2,currentDept:"sole",  enteredAt:1774429779970,label:"SPBL40x2-L2001-160326"},
+      {id:"2073",model:"SP",color:"BL",size:"41",  qty:2,currentDept:"sole",  enteredAt:1774429779970,label:"SPBL41-L2001-160326"},
+      {id:"2074",model:"SP",color:"BL",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774429779970,label:"SPBL44-L2001-160326"},
+      {id:"2075",model:"SP",color:"BL",size:"46",  qty:2,currentDept:"sole",  enteredAt:1774429779970,label:"SPBL46-L2001-160326"},
+      {id:"2076",model:"SP",color:"BL",size:"45",  qty:1,currentDept:"sole",  enteredAt:1774429779970,label:"SPBL45b-L2001-180326"},
+      {id:"2077",model:"SP",color:"BL",size:"43",  qty:4,currentDept:"sole",  enteredAt:1774429779970,label:"SPBL43x5-L2001-180326"},
+      {id:"2078",model:"SP",color:"BL",size:"43",  qty:1,currentDept:"finish",  enteredAt:1774429779970,label:"SPBL43x1a-L2001-200326"},
+      {id:"2079",model:"SP",color:"BL",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774429779970,label:"SPBL44c-L2001-190326"},
+      {id:"2080",model:"SP",color:"BL",size:"43",  qty:2,currentDept:"stitch",  enteredAt:1774429779970,label:"SPBL43x2-L2001-190326"},
+      {id:"2081",model:"SP",color:"BL",size:"41",  qty:2,currentDept:"sole",  enteredAt:1774429779970,label:"SPBL41-L2001-190326"},
+      {id:"2082",model:"SP",color:"BL",size:"40",  qty:2,currentDept:"sole",  enteredAt:1774429779970,label:"SPBL40x2-L2001-190326"},
+      {id:"2083",model:"SSP",color:"BL",size:"44", qty:1,currentDept:"stitch",  enteredAt:1774429779970,label:"SSPBL44-L2001-180326"},
+      {id:"2084",model:"SSP",color:"BL",size:"42", qty:2,currentDept:"stitch",  enteredAt:1774429779970,label:"SSPBL42x2-L2001-190326"},
+      {id:"2085",model:"TN",color:"BL",size:"42",  qty:1,currentDept:"finish",enteredAt:1774429779970,label:"TNBL42-L2001-180326"},
+      {id:"2086",model:"TN",color:"BL",size:"43",  qty:1,currentDept:"finish",enteredAt:1774429779970,label:"TNBL43-L2001-180326"},
+      {id:"2087",model:"SP",color:"BL",size:"45",  qty:1,currentDept:"sole",  enteredAt:1774429779970,label:"SPBL45-L2001-170326"},
+      {id:"2088",model:"SP",color:"BL",size:"44",  qty:1,currentDept:"sole",  enteredAt:1774429779970,label:"SPBL44b-L2001-170326"},
+      {id:"2089",model:"SP",color:"BL",size:"42",  qty:2,currentDept:"finish",enteredAt:1774429779970,label:"SPBL42x2a-L2001-200326"},
+      {id:"2090",model:"SP",color:"BL",size:"42",  qty:3,currentDept:"stitch",  enteredAt:1774429779970,label:"SPBL42x3-L2001-170326"},
     ],
   },
   {
-    id:"F1003", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:7, createdAt:1774260422436,
+    id:"F1003", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:7, createdAt:1774336179970,
     note:"PNL WN44 · MK DC42 · SM BL42·41·39 · PNH DC41 · SPH CR40",
     history:[
-      {dept:"pump",  status:"done", time:1774260422436,  endTime:1774267622436, note:"ช่างใหม่ 7คู่ (13/03)"},
-      {dept:"upper", status:"done", time:1774260422436,  endTime:1774278422436, note:"ช่างใหม่ 7คู่"},
-      {dept:"lace",  status:"done", time:1774278422436, endTime:1774354022436, note:"ช่างมิน 6คู่ (14/03)"},
+      {dept:"pump",  status:"done", time:1774336179970,  endTime:1774343379970, note:"ช่างใหม่ 7คู่ (13/03)"},
+      {dept:"upper", status:"done", time:1774336179970,  endTime:1774354179970, note:"ช่างใหม่ 7คู่"},
+      {dept:"lace",  status:"done", time:1774354179970, endTime:1774429779970, note:"ช่างมิน 6คู่ (14/03)"},
     ],
     pairs:[
-      {id:"2091",model:"MK", color:"DC",size:"42",qty:1,currentDept:"deliver",  enteredAt:1774354022436,label:"MKDC42-F1003-130326"},
-      {id:"2092",model:"SM", color:"BL",size:"39",qty:1,currentDept:"deliver",  enteredAt:1774354022436,label:"SMBL39-F1003-130326"},
-      {id:"2093",model:"SM", color:"BL",size:"41",qty:1,currentDept:"deliver",  enteredAt:1774354022436,label:"SMBL41-F1003-130326"},
-      {id:"2094",model:"SM", color:"BL",size:"42",qty:1,currentDept:"deliver",  enteredAt:1774354022436,label:"SMBL42-F1003-130326"},
-      {id:"2095",model:"PNL",color:"WN",size:"44",qty:1,currentDept:"deliver",  enteredAt:1774354022436,label:"PNLWN44-F1003-130326"},
-      {id:"2096",model:"PNH",color:"DC",size:"41",qty:1,currentDept:"finish",  enteredAt:1774354022436,label:"PNHDC41-F1003-130326"},
-      {id:"2097",model:"SPH",color:"CR",size:"40",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SPHCR40-F1003-130326"},
+      {id:"2091",model:"MK", color:"DC",size:"42",qty:1,currentDept:"deliver",  enteredAt:1774429779970,label:"MKDC42-F1003-130326"},
+      {id:"2092",model:"SM", color:"BL",size:"39",qty:1,currentDept:"deliver",  enteredAt:1774429779970,label:"SMBL39-F1003-130326"},
+      {id:"2093",model:"SM", color:"BL",size:"41",qty:1,currentDept:"deliver",  enteredAt:1774429779970,label:"SMBL41-F1003-130326"},
+      {id:"2094",model:"SM", color:"BL",size:"42",qty:1,currentDept:"deliver",  enteredAt:1774429779970,label:"SMBL42-F1003-130326"},
+      {id:"2095",model:"PNL",color:"WN",size:"44",qty:1,currentDept:"deliver",  enteredAt:1774429779970,label:"PNLWN44-F1003-130326"},
+      {id:"2096",model:"PNH",color:"DC",size:"41",qty:1,currentDept:"finish",  enteredAt:1774429779970,label:"PNHDC41-F1003-130326"},
+      {id:"2097",model:"SPH",color:"CR",size:"40",qty:1,currentDept:"finish",enteredAt:1774429779970,label:"SPHCR40-F1003-130326"},
     ],
   },
   {
-    id:"L1003", type:"L1", model:"PNH", color:"หลายสี", totalPairs:6, createdAt:1774260422436,
+    id:"L1003", type:"L1", model:"PNH", color:"หลายสี", totalPairs:6, createdAt:1774336179970,
     note:"PNH DC41·44·45 · PNH WN40·41·43",
     history:[
-      {dept:"pump",  status:"done", time:1774260422436,  endTime:1774267622436, note:"ช่างใหม่ 6คู่ (13/03)"},
-      {dept:"upper", status:"done", time:1774260422436,  endTime:1774278422436, note:"ช่างใหม่ 6คู่"},
-      {dept:"lace",  status:"done", time:1774278422436, endTime:1774354022436, note:"ช่างมิน PNH WN40·41·43 (14/03)"},
+      {dept:"pump",  status:"done", time:1774336179970,  endTime:1774343379970, note:"ช่างใหม่ 6คู่ (13/03)"},
+      {dept:"upper", status:"done", time:1774336179970,  endTime:1774354179970, note:"ช่างใหม่ 6คู่"},
+      {dept:"lace",  status:"done", time:1774354179970, endTime:1774429779970, note:"ช่างมิน PNH WN40·41·43 (14/03)"},
     ],
     pairs:[
-      {id:"2098",model:"PNH",color:"WN",size:"40",qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"PNHWN40-L1003-130326"},
-      {id:"2099",model:"PNH",color:"WN",size:"41",qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"PNHWN41-L1003-130326"},
-      {id:"2100",model:"PNH",color:"WN",size:"43",qty:1,currentDept:"deliver",enteredAt:1774354022436,label:"PNHWN43-L1003-130326"},
-      {id:"2101",model:"PNH",color:"DC",size:"41",qty:1,currentDept:"deliver", enteredAt:1774354022436,label:"PNHDC41-L1003-130326"},
-      {id:"2102",model:"PNH",color:"DC",size:"44",qty:1,currentDept:"deliver", enteredAt:1774354022436,label:"PNHDC44-L1003-130326"},
-      {id:"2103",model:"PNH",color:"DC",size:"45",qty:1,currentDept:"deliver", enteredAt:1774354022436,label:"PNHDC45-L1003-130326"},
+      {id:"2098",model:"PNH",color:"WN",size:"40",qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"PNHWN40-L1003-130326"},
+      {id:"2099",model:"PNH",color:"WN",size:"41",qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"PNHWN41-L1003-130326"},
+      {id:"2100",model:"PNH",color:"WN",size:"43",qty:1,currentDept:"deliver",enteredAt:1774429779970,label:"PNHWN43-L1003-130326"},
+      {id:"2101",model:"PNH",color:"DC",size:"41",qty:1,currentDept:"deliver", enteredAt:1774429779970,label:"PNHDC41-L1003-130326"},
+      {id:"2102",model:"PNH",color:"DC",size:"44",qty:1,currentDept:"deliver", enteredAt:1774429779970,label:"PNHDC44-L1003-130326"},
+      {id:"2103",model:"PNH",color:"DC",size:"45",qty:1,currentDept:"deliver", enteredAt:1774429779970,label:"PNHDC45-L1003-130326"},
     ],
   },
   {
-    id:"F1004", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774346822436,
+    id:"F1004", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774422579970,
     note:"SK BL38 · PNH BL38.5 · PNL PW40 · PNM BL41.5 · NV BL45 · SK DC41·42",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 7คู่ (14/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 7คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 7คู่ (14/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 7คู่"},
     ],
     pairs:[
-      {id:"2104",model:"SK", color:"BL",size:"38",  qty:1,currentDept:"sole", enteredAt:1774354022436,label:"SKBL38-F1004-140326"},
-      {id:"2105",model:"SK", color:"BL",size:"38.5",qty:1,currentDept:"sole", enteredAt:1774354022436,label:"SKBL38.5-F1004-140326"},
-      {id:"2106",model:"PNH",color:"BL",size:"38.5",qty:1,currentDept:"finish", enteredAt:1774354022436,label:"PNHBL38.5-F1004-140326"},
-      {id:"2107",model:"PNL",color:"PW",size:"40",  qty:1,currentDept:"deliver", enteredAt:1774354022436,label:"PNLPW40-F1004-140326"},
-      {id:"2108",model:"PNM",color:"BL",size:"41.5",qty:1,currentDept:"finish", enteredAt:1774354022436,label:"PNMBL41.5-F1004-140326"},
-      {id:"2109",model:"NV", color:"BL",size:"45",  qty:1,currentDept:"sole", enteredAt:1774354022436,label:"NVBL45-F1004-140326"},
-      {id:"2110",model:"SK", color:"DC",size:"41",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SKDC41-F1004-140326"},
-      {id:"2111",model:"SK", color:"DC",size:"42",  qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SKDC42-F1004-140326"},
+      {id:"2104",model:"SK", color:"BL",size:"38",  qty:1,currentDept:"sole", enteredAt:1774429779970,label:"SKBL38-F1004-140326"},
+      {id:"2105",model:"SK", color:"BL",size:"38.5",qty:1,currentDept:"sole", enteredAt:1774429779970,label:"SKBL38.5-F1004-140326"},
+      {id:"2106",model:"PNH",color:"BL",size:"38.5",qty:1,currentDept:"finish", enteredAt:1774429779970,label:"PNHBL38.5-F1004-140326"},
+      {id:"2107",model:"PNL",color:"PW",size:"40",  qty:1,currentDept:"deliver", enteredAt:1774429779970,label:"PNLPW40-F1004-140326"},
+      {id:"2108",model:"PNM",color:"BL",size:"41.5",qty:1,currentDept:"finish", enteredAt:1774429779970,label:"PNMBL41.5-F1004-140326"},
+      {id:"2109",model:"NV", color:"BL",size:"45",  qty:1,currentDept:"sole", enteredAt:1774429779970,label:"NVBL45-F1004-140326"},
+      {id:"2110",model:"SK", color:"DC",size:"41",  qty:1,currentDept:"finish", enteredAt:1774429779970,label:"SKDC41-F1004-140326"},
+      {id:"2111",model:"SK", color:"DC",size:"42",  qty:1,currentDept:"finish", enteredAt:1774429779970,label:"SKDC42-F1004-140326"},
     ],
   },
   {
-    id:"L1004", type:"L1", model:"SM", color:"หลายสี", totalPairs:5, createdAt:1774346822436,
+    id:"L1004", type:"L1", model:"SM", color:"หลายสี", totalPairs:5, createdAt:1774422579970,
     note:"SM BL44·45 · SM WN38·39·40",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 5คู่ (14/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 5คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 5คู่ (14/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 5คู่"},
     ],
     pairs:[
-      {id:"2112",model:"SM",color:"BL",size:"44",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMBL44-L1004-140326"},
-      {id:"2113",model:"SM",color:"BL",size:"45",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMBL45-L1004-140326"},
-      {id:"2114",model:"SM",color:"WN",size:"38",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMWN38-L1004-140326"},
-      {id:"2115",model:"SM",color:"WN",size:"39",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMWN39-L1004-140326"},
-      {id:"2116",model:"SM",color:"WN",size:"40",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMWN40-L1004-140326"},
+      {id:"2112",model:"SM",color:"BL",size:"44",qty:1,currentDept:"finish",enteredAt:1774440579970,label:"SMBL44-L1004-140326"},
+      {id:"2113",model:"SM",color:"BL",size:"45",qty:1,currentDept:"finish",enteredAt:1774440579970,label:"SMBL45-L1004-140326"},
+      {id:"2114",model:"SM",color:"WN",size:"38",qty:1,currentDept:"finish",enteredAt:1774440579970,label:"SMWN38-L1004-140326"},
+      {id:"2115",model:"SM",color:"WN",size:"39",qty:1,currentDept:"finish",enteredAt:1774440579970,label:"SMWN39-L1004-140326"},
+      {id:"2116",model:"SM",color:"WN",size:"40",qty:1,currentDept:"finish",enteredAt:1774440579970,label:"SMWN40-L1004-140326"},
     ],
   },
   {
-    id:"F1005", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:2, createdAt:1774346822436,
+    id:"F1005", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:2, createdAt:1774422579970,
     note:"SM BL44 (ลค.ออฟฟิศ) · RK BL41 (สานิตย์ จิตประพันธ์)",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 2คู่ (16/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 2คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 2คู่ (16/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 2คู่"},
     ],
     pairs:[
-      {id:"2117",model:"SM",color:"BL",size:"44",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMBL44-F1005-160326"},
-      {id:"2118",model:"RK",color:"BL",size:"41",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"RKBL41-F1005-160326"},
+      {id:"2117",model:"SM",color:"BL",size:"44",qty:1,currentDept:"finish",enteredAt:1774440579970,label:"SMBL44-F1005-160326"},
+      {id:"2118",model:"RK",color:"BL",size:"41",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"RKBL41-F1005-160326"},
     ],
   },
   {
-    id:"L1005", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774346822436,
+    id:"L1005", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774422579970,
     note:"SK DC38·38.5·39·45·46 · PT BL41·42·43 · PT WN40·41",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 10คู่ (16/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 8คู่ (ยกเว้น PT WN40·41)"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 10คู่ (16/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 8คู่ (ยกเว้น PT WN40·41)"},
     ],
     pairs:[
-      {id:"2119",model:"SK",color:"DC",size:"38",  qty:1,currentDept:"sole",enteredAt:1774364822436,label:"SKDC38-L1005-160326"},
-      {id:"2120",model:"SK",color:"DC",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"SKDC38.5-L1005-160326"},
-      {id:"2121",model:"SK",color:"DC",size:"39",  qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SKDC39-L1005-160326"},
-      {id:"2122",model:"SK",color:"DC",size:"45",  qty:1,currentDept:"sole",enteredAt:1774364822436,label:"SKDC45-L1005-160326"},
-      {id:"2123",model:"SK",color:"DC",size:"46",  qty:1,currentDept:"sole",enteredAt:1774364822436,label:"SKDC46-L1005-160326"},
-      {id:"2124",model:"PT",color:"BL",size:"41",  qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"PTBL41-L1005-160326"},
-      {id:"2125",model:"PT",color:"BL",size:"42",  qty:1,currentDept:"finish",enteredAt:1774364822436,label:"PTBL42-L1005-160326"},
-      {id:"2126",model:"PT",color:"BL",size:"43",  qty:1,currentDept:"finish",enteredAt:1774364822436,label:"PTBL43-L1005-160326"},
-      {id:"2127",model:"PT",color:"WN",size:"40",  qty:1,currentDept:"finish",enteredAt:1774346822436, label:"PTWN40-L1005-160326"},
-      {id:"2128",model:"PT",color:"WN",size:"41",  qty:1,currentDept:"finish",enteredAt:1774346822436, label:"PTWN41-L1005-160326"},
+      {id:"2119",model:"SK",color:"DC",size:"38",  qty:1,currentDept:"sole",enteredAt:1774440579970,label:"SKDC38-L1005-160326"},
+      {id:"2120",model:"SK",color:"DC",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774440579970,label:"SKDC38.5-L1005-160326"},
+      {id:"2121",model:"SK",color:"DC",size:"39",  qty:1,currentDept:"finish",enteredAt:1774440579970,label:"SKDC39-L1005-160326"},
+      {id:"2122",model:"SK",color:"DC",size:"45",  qty:1,currentDept:"sole",enteredAt:1774440579970,label:"SKDC45-L1005-160326"},
+      {id:"2123",model:"SK",color:"DC",size:"46",  qty:1,currentDept:"sole",enteredAt:1774440579970,label:"SKDC46-L1005-160326"},
+      {id:"2124",model:"PT",color:"BL",size:"41",  qty:1,currentDept:"stitch",enteredAt:1774440579970,label:"PTBL41-L1005-160326"},
+      {id:"2125",model:"PT",color:"BL",size:"42",  qty:1,currentDept:"finish",enteredAt:1774440579970,label:"PTBL42-L1005-160326"},
+      {id:"2126",model:"PT",color:"BL",size:"43",  qty:1,currentDept:"finish",enteredAt:1774440579970,label:"PTBL43-L1005-160326"},
+      {id:"2127",model:"PT",color:"WN",size:"40",  qty:1,currentDept:"finish",enteredAt:1774422579970, label:"PTWN40-L1005-160326"},
+      {id:"2128",model:"PT",color:"WN",size:"41",  qty:1,currentDept:"finish",enteredAt:1774422579970, label:"PTWN41-L1005-160326"},
     ],
   },
   {
-    id:"F1006", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774346822436,
+    id:"F1006", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774422579970,
     note:"PT DC37 · SP DG42 · SM DC38.5 · SK DC44 · SM BL42 · SK BL43 · MK WN44 · TN BL(หนังกลับ) 49.5 ข้างขวา",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 8คู่ (17/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 8คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 8คู่ (17/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 8คู่"},
     ],
     pairs:[
-      {id:"2129",model:"PT",color:"DC",size:"37",  qty:1,currentDept:"finish",enteredAt:1774364822436,label:"PTDC37-F1006-170326"},
-      {id:"2130",model:"SP",color:"DG",size:"42",  qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"SPDG42-F1006-170326"},
-      {id:"2131",model:"SM",color:"DC",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"SMDC38.5-F1006-170326"},
-      {id:"2132",model:"SK",color:"DC",size:"44",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SKDC44-F1006-170326"},
-      {id:"2133",model:"SM",color:"BL",size:"42",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SMBL42-F1006-170326"},
-      {id:"2134",model:"SK",color:"BL",size:"43",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SKBL43-F1006-170326"},
-      {id:"2135",model:"MK",color:"WN",size:"44",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"MKWN44-F1006-170326"},
-      {id:"2136",model:"TN",color:"BL",size:"49.5",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"TNBL49.5-F1006-170326"},
-      {id:"2137",model:"MK",color:"WN",size:"44",qty:1,currentDept:"sole",enteredAt:1774354022436,label:"MKWN44-F1006-210326"},
-      {id:"2138",model:"MK",color:"WN",size:"44",  qty:1,currentDept:"stitch",enteredAt:1774354022436,label:"MKWN44-F1006-210326"},
-      {id:"2139",model:"SM",color:"BL",size:"43",qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SMBL43-F1006-170326"},
+      {id:"2129",model:"PT",color:"DC",size:"37",  qty:1,currentDept:"finish",enteredAt:1774440579970,label:"PTDC37-F1006-170326"},
+      {id:"2130",model:"SP",color:"DG",size:"42",  qty:1,currentDept:"stitch",enteredAt:1774440579970,label:"SPDG42-F1006-170326"},
+      {id:"2131",model:"SM",color:"DC",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774440579970,label:"SMDC38.5-F1006-170326"},
+      {id:"2132",model:"SK",color:"DC",size:"44",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SKDC44-F1006-170326"},
+      {id:"2133",model:"SM",color:"BL",size:"42",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SMBL42-F1006-170326"},
+      {id:"2134",model:"SK",color:"BL",size:"43",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SKBL43-F1006-170326"},
+      {id:"2135",model:"MK",color:"WN",size:"44",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"MKWN44-F1006-170326"},
+      {id:"2136",model:"TN",color:"BL",size:"49.5",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"TNBL49.5-F1006-170326"},
+      {id:"2137",model:"MK",color:"WN",size:"44",qty:1,currentDept:"sole",enteredAt:1774429779970,label:"MKWN44-F1006-210326"},
+      {id:"2138",model:"MK",color:"WN",size:"44",  qty:1,currentDept:"stitch",enteredAt:1774429779970,label:"MKWN44-F1006-210326"},
+      {id:"2139",model:"SM",color:"BL",size:"43",qty:1,currentDept:"finish", enteredAt:1774429779970,label:"SMBL43-F1006-170326"},
     ],
   },
   {
-    id:"L1006", type:"L1", model:"KN", color:"CR", totalPairs:3, createdAt:1774346822436,
+    id:"L1006", type:"L1", model:"KN", color:"CR", totalPairs:3, createdAt:1774422579970,
     note:"KN CR39·41·42",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 3คู่ (17/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 3คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 3คู่ (17/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 3คู่"},
     ],
     pairs:[
-      {id:"2140",model:"KN",color:"CR",size:"39",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"KNCR39-L1006-170326"},
-      {id:"2141",model:"KN",color:"CR",size:"41",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"KNCR41-L1006-170326"},
-      {id:"2142",model:"KN",color:"CR",size:"42",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"KNCR42-L1006-170326"},
+      {id:"2140",model:"KN",color:"CR",size:"39",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"KNCR39-L1006-170326"},
+      {id:"2141",model:"KN",color:"CR",size:"41",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"KNCR41-L1006-170326"},
+      {id:"2142",model:"KN",color:"CR",size:"42",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"KNCR42-L1006-170326"},
     ],
   },
   {
-    id:"F1007", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:11, createdAt:1774346822436,
+    id:"F1007", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:11, createdAt:1774422579970,
     note:"SV DC35(พื้น4CM·เรทTony·รองPN) · KN BL43(รอตาไก่) · SM LB45 · MT DC45 · SM WN38 · SK BL46 · PT BL38 · SM CR45·42·37",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 10คู่ (18/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 10คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 10คู่ (18/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 10คู่"},
     ],
     pairs:[
-      {id:"2143",model:"SV",color:"DC",size:"35",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVDC35-F1007-180326"},
-      {id:"2144",model:"KN",color:"BL",size:"43",qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"KNBL43-F1007-180326"},
-      {id:"2145",model:"SM",color:"LB",size:"45",qty:1,currentDept:"finish", enteredAt:1774354022436,label:"SMLB45-F1007-180326"},
-      {id:"2146",model:"MT",color:"DC",size:"45",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"MTDC45-F1007-180326"},
-      {id:"2147",model:"SM",color:"WN",size:"38",qty:1,currentDept:"sole", enteredAt:1774354022436,label:"SMWN38-F1007-180326"},
-      {id:"2148",model:"SK",color:"BL",size:"46",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SKBL46-F1007-180326"},
-      {id:"2149",model:"PT",color:"BL",size:"38",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PTBL38-F1007-180326"},
-      {id:"2150",model:"SM",color:"CR",size:"45",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMCR45-F1007-180326"},
-      {id:"2151",model:"SM",color:"CR",size:"42",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMCR42-F1007-180326"},
-      {id:"2152",model:"SM",color:"DC",size:"37",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMDC37-F1007-180326"},
-      {id:"2153",model:"PT",color:"BL",size:"39",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"PTBL39-F1007-190326"},
+      {id:"2143",model:"SV",color:"DC",size:"35",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SVDC35-F1007-180326"},
+      {id:"2144",model:"KN",color:"BL",size:"43",qty:1,currentDept:"stitch",enteredAt:1774440579970,label:"KNBL43-F1007-180326"},
+      {id:"2145",model:"SM",color:"LB",size:"45",qty:1,currentDept:"finish", enteredAt:1774429779970,label:"SMLB45-F1007-180326"},
+      {id:"2146",model:"MT",color:"DC",size:"45",qty:1,currentDept:"finish",enteredAt:1774440579970,label:"MTDC45-F1007-180326"},
+      {id:"2147",model:"SM",color:"WN",size:"38",qty:1,currentDept:"sole", enteredAt:1774429779970,label:"SMWN38-F1007-180326"},
+      {id:"2148",model:"SK",color:"BL",size:"46",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SKBL46-F1007-180326"},
+      {id:"2149",model:"PT",color:"BL",size:"38",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"PTBL38-F1007-180326"},
+      {id:"2150",model:"SM",color:"CR",size:"45",qty:1,currentDept:"finish",enteredAt:1774440579970,label:"SMCR45-F1007-180326"},
+      {id:"2151",model:"SM",color:"CR",size:"42",qty:1,currentDept:"finish",enteredAt:1774440579970,label:"SMCR42-F1007-180326"},
+      {id:"2152",model:"SM",color:"DC",size:"37",qty:1,currentDept:"finish",enteredAt:1774440579970,label:"SMDC37-F1007-180326"},
+      {id:"2153",model:"PT",color:"BL",size:"39",qty:1,currentDept:"finish",enteredAt:1774429779970,label:"PTBL39-F1007-190326"},
     ],
   },
   {
-    id:"F1008", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774346822436,
+    id:"F1008", type:"F1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774422579970,
     note:"KN CR38.5(คุณนก) · SM LB38.5(คุณนก) · SM CR35(ฑิตษ์ฏยา) · SM CR46 · MK BL38.5(มาหะมุด) · PT BL43",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 6คู่ (19/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 6คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 6คู่ (19/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 6คู่"},
     ],
     pairs:[
-      {id:"2154",model:"KN",color:"CR",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774354022436,label:"KNCR38.5-F1008-190326"},
-      {id:"2155",model:"SM",color:"LB",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774354022436,label:"SMLB38.5-F1008-190326"},
-      {id:"2156",model:"SM",color:"CR",size:"35",  qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"SMCR35-F1008-190326"},
-      {id:"2157",model:"SM",color:"CR",size:"46",  qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"SMCR46-F1008-190326"},
-      {id:"2158",model:"MK",color:"BL",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"MKBL38.5-F1008-190326"},
-      {id:"2159",model:"PT",color:"BL",size:"43",  qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"PTBL43-F1008-190326"},
+      {id:"2154",model:"KN",color:"CR",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774429779970,label:"KNCR38.5-F1008-190326"},
+      {id:"2155",model:"SM",color:"LB",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774429779970,label:"SMLB38.5-F1008-190326"},
+      {id:"2156",model:"SM",color:"CR",size:"35",  qty:1,currentDept:"stitch",enteredAt:1774440579970,label:"SMCR35-F1008-190326"},
+      {id:"2157",model:"SM",color:"CR",size:"46",  qty:1,currentDept:"stitch",enteredAt:1774440579970,label:"SMCR46-F1008-190326"},
+      {id:"2158",model:"MK",color:"BL",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774440579970,label:"MKBL38.5-F1008-190326"},
+      {id:"2159",model:"PT",color:"BL",size:"43",  qty:1,currentDept:"stitch",enteredAt:1774440579970,label:"PTBL43-F1008-190326"},
     ],
   },
   {
-    id:"L1007", type:"L1", model:"SM", color:"หลายสี", totalPairs:5, createdAt:1774346822436,
+    id:"L1007", type:"L1", model:"SM", color:"หลายสี", totalPairs:5, createdAt:1774422579970,
     note:"SM CR40 · SM LB44 · SM BL42×2",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 5คู่ (19/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 5คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 5คู่ (19/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 5คู่"},
     ],
     pairs:[
-      {id:"2160",model:"SM",color:"CR",size:"40",qty:1,currentDept:"finish",enteredAt:1774364822436,label:"SMCR40-L1007-190326"},
-      {id:"2161",model:"SM",color:"LB",size:"44",qty:1,currentDept:"stitch",enteredAt:1774364822436,label:"SMLB44-L1007-190326"},
-      {id:"2162",model:"SM",color:"BL",size:"42",qty:2,currentDept:"finish",enteredAt:1774364822436,label:"SMBL42-L1007-190326"},
+      {id:"2160",model:"SM",color:"CR",size:"40",qty:1,currentDept:"finish",enteredAt:1774440579970,label:"SMCR40-L1007-190326"},
+      {id:"2161",model:"SM",color:"LB",size:"44",qty:1,currentDept:"stitch",enteredAt:1774440579970,label:"SMLB44-L1007-190326"},
+      {id:"2162",model:"SM",color:"BL",size:"42",qty:2,currentDept:"finish",enteredAt:1774440579970,label:"SMBL42-L1007-190326"},
     ],
   },
   {
-    id:"F1009", type:"F1", model:"SM", color:"DB", totalPairs:1, createdAt:1774346822436,
+    id:"F1009", type:"F1", model:"SM", color:"DB", totalPairs:1, createdAt:1774422579970,
     note:"SM DB42 กรมท่า (ลค.ออฟฟิศ)",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 1คู่ (20/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 1คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 1คู่ (20/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 1คู่"},
     ],
     pairs:[
-      {id:"2163",model:"SM",color:"DB",size:"42",qty:1,currentDept:"stitch",enteredAt:1774354022436,label:"SMDB42-F1009-200326"},
+      {id:"2163",model:"SM",color:"DB",size:"42",qty:1,currentDept:"stitch",enteredAt:1774429779970,label:"SMDB42-F1009-200326"},
     ],
   },
   {
-    id:"F1010", type:"F1", model:"WM/MK", color:"BL/WN", totalPairs:2, createdAt:1774346822436,
+    id:"F1010", type:"F1", model:"WM/MK", color:"BL/WN", totalPairs:2, createdAt:1774422579970,
     note:"WM หนังSV BL38.5 (คู่พิเศษ)",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 1คู่ (20/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 1คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 1คู่ (20/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 1คู่"},
     ],
     pairs:[
-      {id:"2164",model:"WM",color:"BL",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774354022436,label:"WMBL38.5-F1010-200326"},
-      {id:"2165",model:"MK",color:"WN",size:"40",  qty:1,currentDept:"sole",enteredAt:1774354022436,label:"MKWN40-F1010-220326"},
+      {id:"2164",model:"WM",color:"BL",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774429779970,label:"WMBL38.5-F1010-200326"},
+      {id:"2165",model:"MK",color:"WN",size:"40",  qty:1,currentDept:"sole",enteredAt:1774429779970,label:"MKWN40-F1010-220326"},
     ],
   },
   {
-    id:"L1008", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774346822436,
+    id:"L1008", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774422579970,
     note:"MT BL42·43·44 · SV DC41·42 · MK BL44·46",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 7คู่ (20/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 7คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 7คู่ (20/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 7คู่"},
     ],
     pairs:[
-      {id:"2166",model:"MT",color:"BL",size:"42",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"MTBL42-L1008-200326"},
-      {id:"2167",model:"MT",color:"BL",size:"43",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"MTBL43-L1008-200326"},
-      {id:"2168",model:"MT",color:"BL",size:"44",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"MTBL44-L1008-200326"},
-      {id:"2169",model:"SV",color:"DC",size:"41",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVDC41-L1008-200326"},
-      {id:"2170",model:"SV",color:"DC",size:"42",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVDC42-L1008-200326"},
-      {id:"2171",model:"MK",color:"BL",size:"44",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"MKBL44-L1008-200326"},
-      {id:"2172",model:"MK",color:"BL",size:"46",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"MKBL46-L1008-200326"},
-      {id:"2173",model:"SM",color:"CR",size:"40",qty:1,currentDept:"finish",enteredAt:1774354022436,label:"SMCR40-L1008-230326"},
+      {id:"2166",model:"MT",color:"BL",size:"42",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"MTBL42-L1008-200326"},
+      {id:"2167",model:"MT",color:"BL",size:"43",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"MTBL43-L1008-200326"},
+      {id:"2168",model:"MT",color:"BL",size:"44",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"MTBL44-L1008-200326"},
+      {id:"2169",model:"SV",color:"DC",size:"41",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SVDC41-L1008-200326"},
+      {id:"2170",model:"SV",color:"DC",size:"42",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SVDC42-L1008-200326"},
+      {id:"2171",model:"MK",color:"BL",size:"44",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"MKBL44-L1008-200326"},
+      {id:"2172",model:"MK",color:"BL",size:"46",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"MKBL46-L1008-200326"},
+      {id:"2173",model:"SM",color:"CR",size:"40",qty:1,currentDept:"finish",enteredAt:1774429779970,label:"SMCR40-L1008-230326"},
     ],
   },
   {
-    id:"L1009", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774346822436,
+    id:"L1009", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774422579970,
     note:"SV BL39·41·DC37 · PT DC37·38·38.5 · SM WN47·49 · PNL DB42·43",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 10คู่ (21/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 10คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 10คู่ (21/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 10คู่"},
     ],
     pairs:[
-      {id:"2174",model:"SV",color:"BL",size:"39",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVBL39-L1009-210326"},
-      {id:"2175",model:"SV",color:"BL",size:"41",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVBL41-L1009-210326"},
-      {id:"2176",model:"SV",color:"DC",size:"37",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVDC37-L1009-210326"},
-      {id:"2177",model:"PT",color:"DC",size:"37",  qty:1,currentDept:"sole",enteredAt:1774364822436,label:"PTDC37-L1009-210326"},
-      {id:"2178",model:"PT",color:"DC",size:"38",  qty:1,currentDept:"sole",enteredAt:1774364822436,label:"PTDC38-L1009-210326"},
-      {id:"2179",model:"PT",color:"DC",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"PTDC38.5-L1009-210326"},
-      {id:"2180",model:"SM",color:"WN",size:"47",  qty:1,currentDept:"sole",enteredAt:1774364822436,label:"SMWN47-L1009-210326"},
-      {id:"2181",model:"SM",color:"WN",size:"49",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SMWN49-L1009-210326"},
-      {id:"2182",model:"PNL",color:"DB",size:"42", qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLDB42-L1009-210326"},
-      {id:"2183",model:"PNL",color:"DB",size:"43", qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLDB43-L1009-210326"},
+      {id:"2174",model:"SV",color:"BL",size:"39",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SVBL39-L1009-210326"},
+      {id:"2175",model:"SV",color:"BL",size:"41",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SVBL41-L1009-210326"},
+      {id:"2176",model:"SV",color:"DC",size:"37",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SVDC37-L1009-210326"},
+      {id:"2177",model:"PT",color:"DC",size:"37",  qty:1,currentDept:"sole",enteredAt:1774440579970,label:"PTDC37-L1009-210326"},
+      {id:"2178",model:"PT",color:"DC",size:"38",  qty:1,currentDept:"sole",enteredAt:1774440579970,label:"PTDC38-L1009-210326"},
+      {id:"2179",model:"PT",color:"DC",size:"38.5",qty:1,currentDept:"sole",enteredAt:1774440579970,label:"PTDC38.5-L1009-210326"},
+      {id:"2180",model:"SM",color:"WN",size:"47",  qty:1,currentDept:"sole",enteredAt:1774440579970,label:"SMWN47-L1009-210326"},
+      {id:"2181",model:"SM",color:"WN",size:"49",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SMWN49-L1009-210326"},
+      {id:"2182",model:"PNL",color:"DB",size:"42", qty:1,currentDept:"lace",enteredAt:1774440579970,label:"PNLDB42-L1009-210326"},
+      {id:"2183",model:"PNL",color:"DB",size:"43", qty:1,currentDept:"lace",enteredAt:1774440579970,label:"PNLDB43-L1009-210326"},
     ],
   },
   {
-    id:"L1009", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774346822436,
+    id:"L1009", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:10, createdAt:1774422579970,
     note:"SV BL39·41 · SV DC37 · PT DC37·38·38.5 · SM WN47·49 · PNL DB42·43",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 10คู่ (21/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 10คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 10คู่ (21/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 10คู่"},
     ],
     pairs:[
-      {id:"2184",model:"SV",color:"BL",size:"39",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVBL39-L1009-210326"},
-      {id:"2185",model:"SV",color:"BL",size:"41",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVBL41-L1009-210326"},
-      {id:"2186",model:"SV",color:"DC",size:"37",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SVDC37-L1009-210326"},
-      {id:"2187",model:"PT",color:"DC",size:"37",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PTDC37-L1009-210326"},
-      {id:"2188",model:"PT",color:"DC",size:"38",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PTDC38-L1009-210326"},
-      {id:"2189",model:"PT",color:"DC",size:"38.5",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PTDC38.5-L1009-210326"},
-      {id:"2190",model:"SM",color:"WN",size:"47",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SMWN47-L1009-210326"},
-      {id:"2191",model:"SM",color:"WN",size:"49",  qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SMWN49-L1009-210326"},
-      {id:"2192",model:"PNL",color:"DB",size:"42", qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLDB42-L1009-210326"},
-      {id:"2193",model:"PNL",color:"DB",size:"43", qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLDB43-L1009-210326"},
+      {id:"2184",model:"SV",color:"BL",size:"39",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SVBL39-L1009-210326"},
+      {id:"2185",model:"SV",color:"BL",size:"41",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SVBL41-L1009-210326"},
+      {id:"2186",model:"SV",color:"DC",size:"37",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SVDC37-L1009-210326"},
+      {id:"2187",model:"PT",color:"DC",size:"37",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"PTDC37-L1009-210326"},
+      {id:"2188",model:"PT",color:"DC",size:"38",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"PTDC38-L1009-210326"},
+      {id:"2189",model:"PT",color:"DC",size:"38.5",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"PTDC38.5-L1009-210326"},
+      {id:"2190",model:"SM",color:"WN",size:"47",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SMWN47-L1009-210326"},
+      {id:"2191",model:"SM",color:"WN",size:"49",  qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SMWN49-L1009-210326"},
+      {id:"2192",model:"PNL",color:"DB",size:"42", qty:1,currentDept:"lace",enteredAt:1774440579970,label:"PNLDB42-L1009-210326"},
+      {id:"2193",model:"PNL",color:"DB",size:"43", qty:1,currentDept:"lace",enteredAt:1774440579970,label:"PNLDB43-L1009-210326"},
     ],
   },
   {
-    id:"L1010", type:"L1", model:"KN", color:"หลายสี", totalPairs:5, createdAt:1774346822436,
+    id:"L1010", type:"L1", model:"KN", color:"หลายสี", totalPairs:5, createdAt:1774422579970,
     note:"KN BL41·42·43 · KN WN42·43",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 5คู่ (22/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 5คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 5คู่ (22/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 5คู่"},
     ],
     pairs:[
-      {id:"2194",model:"KN",color:"BL",size:"41",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"KNBL41-L1010-220326"},
-      {id:"2195",model:"KN",color:"BL",size:"42",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"KNBL42-L1010-220326"},
-      {id:"2196",model:"KN",color:"BL",size:"43",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"KNBL43-L1010-220326"},
-      {id:"2197",model:"KN",color:"WN",size:"42",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"KNWN42-L1010-220326"},
-      {id:"2198",model:"KN",color:"WN",size:"43",qty:1,currentDept:"sole",enteredAt:1774364822436,label:"KNWN43-L1010-220326"},
+      {id:"2194",model:"KN",color:"BL",size:"41",qty:1,currentDept:"sole",enteredAt:1774440579970,label:"KNBL41-L1010-220326"},
+      {id:"2195",model:"KN",color:"BL",size:"42",qty:1,currentDept:"sole",enteredAt:1774440579970,label:"KNBL42-L1010-220326"},
+      {id:"2196",model:"KN",color:"BL",size:"43",qty:1,currentDept:"sole",enteredAt:1774440579970,label:"KNBL43-L1010-220326"},
+      {id:"2197",model:"KN",color:"WN",size:"42",qty:1,currentDept:"sole",enteredAt:1774440579970,label:"KNWN42-L1010-220326"},
+      {id:"2198",model:"KN",color:"WN",size:"43",qty:1,currentDept:"sole",enteredAt:1774440579970,label:"KNWN43-L1010-220326"},
     ],
   },
   {
-    id:"F1011", type:"F1", model:"PNL", color:"WN", totalPairs:1, createdAt:1774346822436,
+    id:"F1011", type:"F1", model:"PNL", color:"WN", totalPairs:1, createdAt:1774422579970,
     note:"PNL WN42",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 1คู่ (23/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 1คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 1คู่ (23/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 1คู่"},
     ],
     pairs:[
-      {id:"2199",model:"PNL",color:"WN",size:"42",qty:1,currentDept:"sole",enteredAt:1774354022436,label:"PNLWN42-F1011-230326"},
+      {id:"2199",model:"PNL",color:"WN",size:"42",qty:1,currentDept:"sole",enteredAt:1774429779970,label:"PNLWN42-F1011-230326"},
     ],
   },
   {
-    id:"L1011", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774346822436,
+    id:"L1011", type:"L1", model:"หลายรุ่น", color:"หลายสี", totalPairs:8, createdAt:1774422579970,
     note:"PNL CR45 · PNL PW43 · PNL DB43 · SM LB39·40 · NV OL39 · SM BL42×2",
     history:[
-      {dept:"pump",  status:"done", time:1774346822436,  endTime:1774354022436, note:"ช่างใหม่ 8คู่ (23/03)"},
-      {dept:"upper", status:"done", time:1774346822436,  endTime:1774364822436, note:"ช่างใหม่ 8คู่"},
+      {dept:"pump",  status:"done", time:1774422579970,  endTime:1774429779970, note:"ช่างใหม่ 8คู่ (23/03)"},
+      {dept:"upper", status:"done", time:1774422579970,  endTime:1774440579970, note:"ช่างใหม่ 8คู่"},
     ],
     pairs:[
-      {id:"2200",model:"PNL",color:"CR",size:"45",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLCR45-L1011-230326"},
-      {id:"2201",model:"PNL",color:"PW",size:"43",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLPW43-L1011-230326"},
-      {id:"2202",model:"PNL",color:"DB",size:"43",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"PNLDB43-L1011-230326"},
-      {id:"2203",model:"SM", color:"LB",size:"39",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SMLB39-L1011-230326"},
-      {id:"2204",model:"SM", color:"LB",size:"40",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"SMLB40-L1011-230326"},
-      {id:"2205",model:"NV", color:"OL",size:"39",qty:1,currentDept:"lace",enteredAt:1774364822436,label:"NVOL39-L1011-230326"},
-      {id:"2206",model:"SM", color:"BL",size:"42",qty:2,currentDept:"lace",enteredAt:1774364822436,label:"SMBL42-L1011-230326"},
+      {id:"2200",model:"PNL",color:"CR",size:"45",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"PNLCR45-L1011-230326"},
+      {id:"2201",model:"PNL",color:"PW",size:"43",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"PNLPW43-L1011-230326"},
+      {id:"2202",model:"PNL",color:"DB",size:"43",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"PNLDB43-L1011-230326"},
+      {id:"2203",model:"SM", color:"LB",size:"39",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SMLB39-L1011-230326"},
+      {id:"2204",model:"SM", color:"LB",size:"40",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"SMLB40-L1011-230326"},
+      {id:"2205",model:"NV", color:"OL",size:"39",qty:1,currentDept:"lace",enteredAt:1774440579970,label:"NVOL39-L1011-230326"},
+      {id:"2206",model:"SM", color:"BL",size:"42",qty:2,currentDept:"lace",enteredAt:1774440579970,label:"SMBL42-L1011-230326"},
     ],
   },
   {
-    id:"L1012", type:"L1", model:"SM", color:"BL", totalPairs:1, createdAt:1774346822436,
+    id:"L1012", type:"L1", model:"SM", color:"BL", totalPairs:1, createdAt:1774422579970,
     note:"SM BL49 (ล็อตใหม่)",
     history:[
-      {dept:"lace", status:"done", time:1774364822436, note:"ช่างมิน 23/03"},
+      {dept:"lace", status:"done", time:1774440579970, note:"ช่างมิน 23/03"},
     ],
     pairs:[
-      {id:"2207",model:"SM",color:"BL",size:"49",qty:1,currentDept:"sole",enteredAt:1774354022436,label:"SMBL49-L1012-230326"},
+      {id:"2207",model:"SM",color:"BL",size:"49",qty:1,currentDept:"sole",enteredAt:1774429779970,label:"SMBL49-L1012-230326"},
     ],
   },
 ];
@@ -599,7 +610,6 @@ const mkPairs = (sizes, model, color, dept, enteredAt) =>
   Object.entries(sizes).flatMap(([size,qty]) => [{id:newPid(), model, color, size, qty, currentDept:dept, enteredAt}]);
 
 /* ═══════════════ INITIAL DATA ═══════════════ */
-];
 
 /* ═══════════════ ADVANCE PAIRS LOGIC ═══════════════ */
 // advanceSomePairs: orderId, pairId, qtyToAdvance
@@ -628,7 +638,7 @@ const advanceSomePairs = (orders, orderId, pairId, qtyToAdvance) => {
 
 /* ═══════════════ MAIN APP ═══════════════ */
 function App() {
-  const [orders, setOrders]               = useState(()=>{ const c=loadFromCache(); return c.length?c:getSeedData(); });
+  const [orders, setOrders]               = useState(initialOrders);
   const [activeView, setActiveView]       = useState("board");
   const [activeDept, setActiveDept]       = useState("sole");
   const [showNewOrder, setShowNewOrder]   = useState(false);
@@ -640,21 +650,6 @@ function App() {
   const [tick, setTick]                   = useState(0);
 
   useEffect(()=>{ const t=setInterval(()=>setTick(n=>n+1),60000); return ()=>clearInterval(t); },[]);
-
-  // sync with Google Sheets on load
-  useEffect(()=>{
-    if(!isApiOk()||!navigator.onLine) return;
-    (async()=>{
-      try{
-        const data = await apiGet();
-        if(data&&data.length>0){ setOrders(data); saveToCache(data); }
-        else { const seed=getSeedData(); saveToCache(seed); await apiSaveAll(seed); showToast("✅ sync ข้อมูลขึ้น Sheets แล้ว!"); }
-      }catch(e){ console.log("sync failed",e); }
-    })();
-  },[]);
-
-  // save to localStorage on every change
-  useEffect(()=>{ if(orders.length>0) saveToCache(orders); },[orders]);
 
   const [form, setForm]           = useState({type:"F1",model:"SP",color:"BL",sizes:{},note:""});
   const [sizeInput, setSizeInput] = useState({size:"39",qty:""});
