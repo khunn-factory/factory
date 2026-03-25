@@ -33,14 +33,14 @@ input,select,button,textarea { font-family:inherit; }
 const API_URL = "https://script.google.com/macros/s/AKfycbzJHI4zU_h3VgeguJsSz3jMTp_5FiiN8X7RMJ65J5qANs2NaknTQf4u3yKFpBq1-OBIgQ/exec";
 const CACHE_KEY = "factory_orders_v1";
 const SYNC_INTERVAL = 30000;
-
-const isApiOk = () => typeof API_URL!=="undefined" && API_URL && !API_URL.includes("YOUR_APPS");
+const isApiOk = () => API_URL && !API_URL.includes("YOUR_APPS");
 const loadFromCache = () => { try { return JSON.parse(localStorage.getItem(CACHE_KEY))||[]; } catch { return []; } };
 const saveToCache = o => { try { localStorage.setItem(CACHE_KEY, JSON.stringify(o)); } catch {} };
-const showToast = (msg, color="#22c55e") => { const el=document.createElement("div"); el.className="toast"; el.style.borderColor=color+"66"; el.textContent=msg; document.body.appendChild(el); setTimeout(()=>el.remove(),2500); };
-
+const showToast = (msg, color) => { const el=document.createElement("div"); el.className="toast"; if(color) el.style.borderColor=color+"66"; el.textContent=msg; document.body.appendChild(el); setTimeout(()=>el.remove(),2500); };
 const apiGet = async () => { const r=await fetch(API_URL+"?action=all&ts="+Date.now()); const j=await r.json(); if(!j.ok) throw new Error(j.error); return j.data; };
-const apiSaveAll = async orders => { const r=await fetch(API_URL,{method:"POST",body:JSON.stringify({action:"saveAll",payload:{orders}})});  const j=await r.json(); if(!j.ok) throw new Error(j.error); return j.result; };
+const apiSaveAll = async orders => { const r=await fetch(API_URL,{method:"POST",body:JSON.stringify({action:"saveAll",payload:{orders}})}); const j=await r.json(); if(!j.ok) throw new Error(j.error); return j.result; };
+// Make global for babel scope
+window._factory = {API_URL,CACHE_KEY,isApiOk,loadFromCache,saveToCache,showToast,apiGet,apiSaveAll};
 </script>
 
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -49,6 +49,8 @@ const apiSaveAll = async orders => { const r=await fetch(API_URL,{method:"POST",
 
 <script type="text/babel" data-presets="react">
 const {useState,useMemo,useEffect,useCallback,useRef} = React;
+// Use globals from regular script
+const {isApiOk,loadFromCache,saveToCache,showToast,apiGet,apiSaveAll} = window._factory;
 
 /* ═══════ SEED DATA ═══════ */
 function getSeedData() {
